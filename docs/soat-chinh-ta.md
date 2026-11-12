@@ -36,3 +36,4 @@ Mác 9:50 được tách đoạn "Các ngươi phải có muối trong lòng mì
 ## Đổi sang cách viết thông dụng (12/11/2026)
 
 Theo ý chủ dự án, ba chữ cũ được đổi trên toàn bộ 66 sách cho dễ hiểu: đờn → đàn (517 chỗ), nhơn → nhân (570 chỗ), nầy → này (3.069 chỗ). Các chữ cổ khác (chơn, nhứt, sanh, lịnh, bịnh…) vẫn giữ như bản 1925.
+Bổ sung (13/11/2026): chơn → chân (456 chỗ), nhứt → nhất (147 chỗ). Các chữ cổ còn lại (sanh, lịnh, bịnh, nhựt…) giữ nguyên theo ý chủ dự án.
