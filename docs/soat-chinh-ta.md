@@ -32,3 +32,7 @@ Không đổi:
 - Giữ chính tả 1925 ở các chữ đờn/đàn, nhơn/nhân, nầy/này.
 
 Mác 9:50 được tách đoạn "Các ngươi phải có muối trong lòng mình…" ra thành câu 51 như trang Hội Thánh.
+
+## Đổi sang cách viết thông dụng (12/11/2026)
+
+Theo ý chủ dự án, ba chữ cũ được đổi trên toàn bộ 66 sách cho dễ hiểu: đờn → đàn (517 chỗ), nhơn → nhân (570 chỗ), nầy → này (3.069 chỗ). Các chữ cổ khác (chơn, nhứt, sanh, lịnh, bịnh…) vẫn giữ như bản 1925.
