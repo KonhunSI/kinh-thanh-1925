@@ -128,7 +128,7 @@ function parseRef(q) {
 }
 
 /* ---------- Tab "Đọc" mở đoạn đang đọc dở ---------- */
-if (S.pos) { const t = $('[data-tab="read"]'); if (t) t.href = chUrl(S.pos.b, S.pos.c); }
+if (S.pos) $$('[data-tab="read"]').forEach((t) => (t.href = chUrl(S.pos.b, S.pos.c)));
 
 /* ---------- Kế hoạch đọc ---------- */
 const planListCache = {};
@@ -168,7 +168,7 @@ function decorate() {
 }
 async function initChapter(b, c) {
   S.pos = { b, c }; save();
-  const t = $('[data-tab="read"]'); if (t) t.href = chUrl(b, c);
+  $$('[data-tab="read"]').forEach((t) => (t.href = chUrl(b, c)));
   if (!cache[b]) { try { await loadBook(b); } catch (e) {} }
   const vs = cache[b] ? cache[b][c - 1] : $$("#scr .v").map((el) => el.textContent.replace(/^\d+/, ""));
   CH = { b, c, verses: vs };

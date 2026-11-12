@@ -70,7 +70,7 @@ const ic = (id, extra = "") => `<svg class="icon"${extra}><use href="#i-${id}"/>
 // Áp dụng cỡ chữ / giao diện trước khi vẽ trang để không bị chớp.
 const PREF_SCRIPT = `<script>try{var p=JSON.parse(localStorage.getItem("kt1925")||"{}"),d=document.documentElement;if(p.theme&&p.theme!=="auto")d.setAttribute("data-theme",p.theme);if(p.size)d.style.setProperty("--read-size",p.size+"px");if(p.fam==="sans")d.classList.add("sans");if(p.lay==="lines")d.classList.add("lines")}catch(e){}</script>`;
 
-function layout({ title, desc, canonical, page, tab, body, head = "", noindex = false, pick = null, data = {} }) {
+function layout({ title, desc, canonical, page, tab, body, head = "", noindex = false, pick = null, data = {}, wide = false }) {
   const dataAttrs = Object.entries(data).map(([k, v]) => ` data-${k}="${esc(v)}"`).join("");
   const tabs = [["today", "", "sun", "Hôm nay"], ["read", "muc-luc/", "book", "Đọc"], ["search", "tim-kiem/", "search", "Tìm kiếm"], ["saved", "da-luu/", "saved", "Đã lưu"]];
   return `<!doctype html>
@@ -105,15 +105,17 @@ ${head}
 <body data-page="${page}"${dataAttrs}>
 <a class="skip" href="#main">Bỏ qua, đến nội dung</a>
 ${SPRITE}
-<header class="top"><div class="wrap">
+<header class="top"><div class="wrap wide">
+${pick ? `<a class="brand desk" href="${u()}"><span class="ribbon" aria-hidden="true"></span><span>Kinh Thánh <small>1925</small></span></a>` : ""}
 ${pick
   ? `<button class="pick" id="pickBtn" aria-haspopup="dialog"><span>${esc(pick)}</span>${ic("down", ' style="width:16px;height:16px"')}</button>
 <button class="ibtn" id="listenBtn" title="Nghe đọc đoạn này" aria-label="Nghe đọc đoạn này" aria-pressed="false">${ic("head")}</button>`
   : `<a class="brand" href="${u()}"><span class="ribbon" aria-hidden="true"></span><span>Kinh Thánh <small>1925</small></span></a>
 <button class="ibtn" id="pickBtn" title="Chọn sách" aria-label="Chọn sách" aria-haspopup="dialog">${ic("book")}</button>`}
+<nav class="topnav" aria-label="Chính">${tabs.map(([k, href, icon, label]) => `<a href="${u(href)}" data-tab="${k}"${tab === k ? ' aria-current="page"' : ""}>${label}</a>`).join("")}</nav>
 <button class="ibtn" id="aaBtn" title="Cỡ chữ và giao diện" aria-label="Cỡ chữ và giao diện" aria-haspopup="dialog">${ic("aa")}</button>
 </div></header>
-<main id="main" class="wrap">
+<main id="main" class="wrap${wide ? " wide" : ""}">
 ${body}
 </main>
 <div class="dock"><div class="wrap">
@@ -192,12 +194,14 @@ const testament = (b) => (b < NT ? "Cựu Ước" : "Tân Ước");
   const [vb, vc, vv] = VOD[0];
   const vt = DATA[vb - 1][vc - 1][vv - 1];
   const body = `
+<div class="home"><div class="home-main">
 <div class="date" id="todayDate">Kinh Thánh bản Truyền Thống 1925</div>
 <article class="vod" aria-label="Câu gốc hôm nay"><div class="label">Câu gốc hôm nay</div>
 <blockquote id="vodText">${esc(vt)}</blockquote><cite id="vodRef">${esc(BOOKS[vb - 1][0])} ${vc}:${vv}</cite>
 <div class="row"><a class="btn" id="vodRead" href="${u(chPath(vb - 1, vc))}#v${vv}">Đọc cả đoạn</a><button class="btn ghost" id="vodImg">${ic("image")}Ảnh chia sẻ</button><button class="btn ghost" id="vodCopy">${ic("copy")}Sao chép</button></div></article>
 <a class="continue" id="contBtn" href="${u(chPath(0, 1))}">${ic("book", ' style="color:var(--accent)"')}<span><span class="small muted">Bắt đầu đọc</span><b>Sáng Thế Ký 1</b></span></a>
 <div class="section" id="planBox"></div>
+</div><div class="home-side">
 <section class="section toc" aria-labelledby="toc">
 <h2 id="toc">Mục lục</h2>
 <p class="lead">${TOTAL_CH.toLocaleString("vi-VN")} đoạn, ${TOTAL_V.toLocaleString("vi-VN")} câu, theo bản dịch Truyền Thống 1925.</p>
@@ -207,11 +211,12 @@ const testament = (b) => (b < NT ? "Cựu Ước" : "Tân Ước");
 <section class="section" aria-labelledby="about">
 <h2 id="about">Về bản dịch này</h2>
 <p class="lead">Bản Truyền Thống 1925 là bản Kinh Thánh tiếng Việt quen thuộc với nhiều thế hệ tín hữu Tin Lành. Tân Ước in lần đầu năm 1923 tại Hà Nội, trọn bộ Kinh Thánh in năm 1925–1926. Văn bản đã thuộc phạm vi công cộng.</p>
-</section>`;
+</section>
+</div></div>`;
   write("index.html", layout({
     title: "Kinh Thánh 1925 – Bản Truyền Thống, đọc trực tuyến",
     desc: "Đọc Kinh Thánh tiếng Việt bản Truyền Thống 1925: 66 sách, tìm kiếm có và không dấu, tô màu, ghi chú, kế hoạch đọc, câu gốc mỗi ngày, nghe đọc và đọc khi không có mạng.",
-    canonical: "", page: "home", tab: "today", body,
+    canonical: "", page: "home", tab: "today", body, wide: true,
     head: `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url: abs(""), inLanguage: "vi", potentialAction: { "@type": "SearchAction", target: abs("tim-kiem/") + "?q={search_term_string}", "query-input": "required name=search_term_string" } })}</script>`,
   }));
 }
@@ -220,7 +225,7 @@ const testament = (b) => (b < NT ? "Cựu Ước" : "Tân Ước");
 write("muc-luc/index.html", layout({
   title: "Mục lục 66 sách – Kinh Thánh 1925",
   desc: "Danh sách 39 sách Cựu Ước và 27 sách Tân Ước trong Kinh Thánh bản Truyền Thống 1925.",
-  canonical: "muc-luc/", page: "toc", tab: "read",
+  canonical: "muc-luc/", page: "toc", tab: "read", wide: true,
   body: `<h1 class="page">Mục lục</h1><p class="lead">Chọn một sách để xem các đoạn.</p>
 <div class="toc"><h2>Cựu Ước</h2>${bookList(0, NT)}<h2>Tân Ước</h2>${bookList(NT, 66)}</div>`,
 }));
@@ -238,7 +243,7 @@ for (let b = 0; b < 66; b++) {
   write(`${bookPath(b)}index.html`, layout({
     title: `${name} – Kinh Thánh 1925`,
     desc: clip(`${intro} Đọc ${name} (${CHS[b]} đoạn) theo bản Truyền Thống 1925.`),
-    canonical: bookPath(b), page: "book", tab: "read", body, data: { b },
+    canonical: bookPath(b), page: "book", tab: "read", body, data: { b }, wide: true,
     head: breadcrumbLd([["Kinh Thánh 1925", ""], [name, bookPath(b)]]),
   }));
 }
@@ -261,16 +266,21 @@ for (let b = 0; b < 66; b++) {
     const navBtn = (x, dir) => x
       ? `<a class="btn" rel="${dir}" href="${u(chPath(x[0], x[1]))}">${dir === "prev" ? ic("left") : ""}${esc(BOOKS[x[0]][0])} ${x[1]}${dir === "next" ? ic("right") : ""}</a>`
       : `<span class="btn" aria-disabled="true">${dir === "prev" ? "Đầu Kinh Thánh" : "Hết Kinh Thánh"}</span>`;
-    const body = `<nav class="crumbs" aria-label="Vị trí"><a href="${u()}">Trang chủ</a><span>›</span><a href="${u(bookPath(b))}">${esc(name)}</a><span>›</span><span>Đoạn ${c}</span></nav>
+    const side = `<aside class="side" aria-label="Các đoạn trong sách ${esc(name)}"><div class="label">${testament(b)}</div>
+<a class="side-book" href="${u(bookPath(b))}">${esc(name)}</a><div class="small muted">${CHS[b]} đoạn</div>
+<ul class="chs mini">${DATA[b].map((_, i) => `<li><a href="${u(chPath(b, i + 1))}"${i + 1 === c ? ' class="cur" aria-current="page"' : ""}>${i + 1}</a></li>`).join("")}</ul>
+<div class="side-links">${b > 0 ? `<a href="${u(bookPath(b - 1))}">${ic("left")}${esc(BOOKS[b - 1][0])}</a>` : ""}${b < 65 ? `<a href="${u(bookPath(b + 1))}">${esc(BOOKS[b + 1][0])}${ic("right")}</a>` : ""}</div>
+<a class="btn side-all" href="${u("muc-luc/")}">${ic("book")}Tất cả 66 sách</a></aside>`;
+    const body = `<div class="reader"><article class="read-main"><nav class="crumbs" aria-label="Vị trí"><a href="${u()}">Trang chủ</a><span>›</span><a href="${u(bookPath(b))}">${esc(name)}</a><span>›</span><span>Đoạn ${c}</span></nav>
 <div class="ch-head"><div><a class="book" href="${u(bookPath(b))}">${esc(name)}</a><h1><span class="sr">${esc(name)} </span>Đoạn ${c}</h1></div><span class="small muted">${vs.length} câu</span></div>
 <div class="scripture" id="scr"><p>${verseHtml(vs)}</p></div>
 <div class="done-row" id="planRow" hidden></div>
 <nav class="ch-nav" aria-label="Chuyển đoạn">${navBtn(prev, "prev")}${navBtn(next, "next")}</nav>
-<p class="copyright">Kinh Thánh bản Truyền Thống 1925 · phạm vi công cộng</p>`;
+<p class="copyright">Kinh Thánh bản Truyền Thống 1925 · phạm vi công cộng</p></article>${side}</div>`;
     write(`${chPath(b, c)}index.html`, layout({
       title: `${name} ${c} – Kinh Thánh 1925`,
       desc: clip(`${name} ${c}: ${vs.slice(0, 3).join(" ")}`),
-      canonical: chPath(b, c), page: "chapter", tab: "read", body, pick: `${name} ${c}`, data: { b, c },
+      canonical: chPath(b, c), page: "chapter", tab: "read", body, pick: `${name} ${c}`, data: { b, c }, wide: true,
       head: breadcrumbLd([["Kinh Thánh 1925", ""], [name, bookPath(b)], [`${name} ${c}`, chPath(b, c)]])
         + (prev ? `<link rel="prev" href="${u(chPath(prev[0], prev[1]))}">` : "") + (next ? `<link rel="next" href="${u(chPath(next[0], next[1]))}">` : ""),
     }));
