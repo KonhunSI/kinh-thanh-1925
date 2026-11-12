@@ -20,3 +20,15 @@ So toàn bộ 1.189 đoạn với bản VI1934 trên kinhthanh.httlvn.org (Hội
 - 63 câu trang Hội Thánh khớp bản gốc chứ không khớp eBible: đã trả lại bản gốc.
 - 34 câu có lỗi gõ rõ ràng mà cả hai bản công cộng đều sai (lữa → lửa, bẩy → bẫy, lúa mình → lúa mì…): đã sửa.
 - 273 câu trang Hội Thánh khác cả hai bản công cộng. Phần lớn là lối viết của bản 1998 (bịnh → bệnh, yên ủi → an ủi, chê-ru-bin → chê-ru-bim); để người đối chiếu bản in quyết định.
+
+
+## Sửa theo kinhthanh.httlvn.org (12/11/2026)
+
+Theo yêu cầu của chủ dự án, 243 câu trong danh sách 273 câu còn khác đã được sửa cho khớp chữ với kinhthanh.httlvn.org (bản VI1934). Chi tiết từng câu (trước/sau) trong `theo-httlvn-2026-11-12.csv`.
+
+Không đổi:
+- 25 câu chỉ khác cách đánh số câu và 2 câu chỉ khác dấu câu.
+- 5 câu mà phần "thiếu" thật ra đang nằm ở câu kề bên (khác ranh giới câu): Thi Thiên 49:9, II Các Vua 2:24, II Sử Ký 35:26, I Cô-rinh-tô 3:22, II Cô-rinh-tô 13:12.
+- Giữ chính tả 1925 ở các chữ đờn/đàn, nhơn/nhân, nầy/này.
+
+Mác 9:50 được tách đoạn "Các ngươi phải có muối trong lòng mình…" ra thành câu 51 như trang Hội Thánh.
