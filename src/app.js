@@ -62,7 +62,7 @@ for (const [id, k] of [["#segFam", "fam"], ["#segLay", "lay"], ["#segTheme", "th
 $$("dialog").forEach((d) => d.addEventListener("click", (e) => { if (e.target === d || e.target.closest("[data-close]")) d.close(); }));
 
 /* ---------- Đọc khi không có mạng ---------- */
-const DATA_CACHE = "kt-data-v1";
+const DATA_CACHE = "kt-data-" + META.DATAV;
 async function offlineStatus() {
   const msg = $("#offlineMsg"), btn = $("#offlineBtn");
   if (!("caches" in window) || !("serviceWorker" in navigator)) { msg.textContent = "Trình duyệt này chưa hỗ trợ đọc khi không có mạng."; btn.hidden = true; return; }

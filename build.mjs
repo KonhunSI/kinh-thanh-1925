@@ -34,11 +34,12 @@ function write(rel, content) {
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
 const css = fs.readFileSync(path.join(ROOT, "src/style.css"), "utf8");
-const META = { BASE, NT, CHS, VOD, BOOKS, SLUGS };
+const DATAV = crypto.createHash("sha1").update(JSON.stringify(DATA)).digest("hex").slice(0, 8);
+const META = { BASE, NT, CHS, VOD, BOOKS, SLUGS, DATAV };
 const js = fs.readFileSync(path.join(ROOT, "src/app.js"), "utf8").replace("/*@META@*/", `const META=${JSON.stringify(META)};`);
 const hash = (s) => crypto.createHash("sha1").update(s).digest("hex").slice(0, 8);
 const CSS_V = hash(css), JS_V = hash(js);
-const VERSION = hash(css + js + TOTAL_V + BASE);
+const VERSION = hash(css + js + TOTAL_V + BASE + DATAV);
 write("assets/style.css", css);
 write("assets/app.js", js);
 for (const f of fs.readdirSync(path.join(ROOT, "src/static"))) fs.copyFileSync(path.join(ROOT, "src/static", f), path.join(OUT, "assets", f));
@@ -322,7 +323,7 @@ write("manifest.webmanifest", JSON.stringify({
   ],
 }, null, 1));
 const sw = fs.readFileSync(path.join(ROOT, "src/sw.js"), "utf8")
-  .replace("__VERSION__", VERSION).replace("__BASE__", BASE)
+  .replace("__VERSION__", VERSION).replace("__BASE__", BASE).replace("__DATAV__", DATAV)
   .replace("__SHELL__", JSON.stringify([BASE, u("doc/"), u("muc-luc/"), u("tim-kiem/"), u("da-luu/"), u(`assets/style.css?v=${CSS_V}`), u(`assets/app.js?v=${JS_V}`), u("assets/icon.svg"), u("manifest.webmanifest")]));
 write("sw.js", sw);
 write(".nojekyll", "");

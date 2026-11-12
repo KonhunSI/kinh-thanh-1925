@@ -4,7 +4,7 @@ const BASE = "__BASE__";
 const SHELL = __SHELL__;
 const SHELL_CACHE = "kt-shell-" + VERSION;
 const PAGE_CACHE = "kt-pages-v1";
-const DATA_CACHE = "kt-data-v1"; // app.js dùng chung tên này khi tải toàn bộ
+const DATA_CACHE = "kt-data-__DATAV__"; // đổi theo nội dung Kinh Thánh; app.js dùng chung tên này
 const FONT_CACHE = "kt-fonts-v1";
 
 self.addEventListener("install", (e) => {
@@ -13,7 +13,7 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k.startsWith("kt-shell-") && k !== SHELL_CACHE) await caches.delete(k);
+    for (const k of await caches.keys()) if ((k.startsWith("kt-shell-") && k !== SHELL_CACHE) || (k.startsWith("kt-data-") && k !== DATA_CACHE)) await caches.delete(k);
     await self.clients.claim();
   })());
 });
