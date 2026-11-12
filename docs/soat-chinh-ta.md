@@ -11,3 +11,12 @@ Cách soát: đối chiếu từng câu với bản gõ độc lập thứ hai (
 - Sửa thêm lỗi mã VNI ở chữ hoa (Oùc → Óc, Uûa → Ủa), khoảng trắng thừa trong tên riêng (Bê -e-Sê-ba → Bê-e-Sê-ba) và một số lỗi gõ lẻ.
 
 Kết quả: 2.936 câu được sửa nội dung, 381 câu chỉ sửa khoảng trắng. Danh sách đầy đủ: `soat-chinh-ta-2026-11-12.csv`. Cột "Ưu tiên kiểm tra" = Cao cho chỗ đổi danh xưng Đức Chúa Trời/Đức Chúa Jêsus hoặc thêm/bớt từ 4 chữ trở lên; nên đối chiếu những dòng này với bản in trước.
+
+## Đối chiếu lần hai với kinhthanh.httlvn.org (12/11/2026)
+
+So toàn bộ 1.189 đoạn với bản VI1934 trên kinhthanh.httlvn.org (Hội Thánh Tin Lành Việt Nam). Trang này ghi "©1998 Thánh Kinh Hội giữ bản quyền", nên chỉ dùng làm thước đo để chọn giữa hai bản công cộng, không chép văn bản của trang.
+
+- 2.562 câu đã sửa khớp với trang Hội Thánh.
+- 63 câu trang Hội Thánh khớp bản gốc chứ không khớp eBible: đã trả lại bản gốc.
+- 34 câu có lỗi gõ rõ ràng mà cả hai bản công cộng đều sai (lữa → lửa, bẩy → bẫy, lúa mình → lúa mì…): đã sửa.
+- 273 câu trang Hội Thánh khác cả hai bản công cộng. Phần lớn là lối viết của bản 1998 (bịnh → bệnh, yên ủi → an ủi, chê-ru-bin → chê-ru-bim); để người đối chiếu bản in quyết định.
