@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { BOOKS, NT, SLUGS, INTRO, fold } from "./src/books.mjs";
+import { BOOKS, NT, SLUGS, INTRO, GROUPS, groupOf, fold } from "./src/books.mjs";
 import { VOD_DAYS, VOD_SPECIAL, TET } from "./src/vod.mjs";
 
 const ROOT = path.dirname(new URL(import.meta.url).pathname);
@@ -39,7 +39,7 @@ const DATAV = crypto.createHash("sha1").update(JSON.stringify(DATA)).digest("hex
 // Ảnh nền câu gốc: src/vod-img/<khóa>.jpg (khóa: 01-01 … 12-31, 02-29, GOODFRI, EASTER, PENTECOST, TET1–3)
 const VOD_IMG_DIR = path.join(ROOT, "src/vod-img");
 const VODIMG = fs.existsSync(VOD_IMG_DIR) ? fs.readdirSync(VOD_IMG_DIR).filter((f) => /\.(jpe?g|webp)$/i.test(f)).sort() : [];
-const META = { BASE, NT, CHS, VOD_DAYS, VOD_SPECIAL, TET, VODIMG, BOOKS, SLUGS, DATAV };
+const META = { BASE, NT, CHS, GROUPS, VOD_DAYS, VOD_SPECIAL, TET, VODIMG, BOOKS, SLUGS, DATAV };
 const js = fs.readFileSync(path.join(ROOT, "src/app.js"), "utf8").replace("/*@META@*/", `const META=${JSON.stringify(META)};`);
 const hash = (s) => crypto.createHash("sha1").update(s).digest("hex").slice(0, 8);
 const CSS_V = hash(css), JS_V = hash(js);
@@ -198,7 +198,9 @@ const breadcrumbLd = (items) => `<script type="application/ld+json">${JSON.strin
   itemListElement: items.map(([name, p], i) => ({ "@type": "ListItem", position: i + 1, name, item: abs(p) })),
 })}</script>`;
 
-const bookList = (from, to, cls = "") => `<ul class="books">${BOOKS.slice(from, to).map(([n], j) => `<li><a href="${u(bookPath(from + j))}"${cls}>${esc(n)}</a></li>`).join("")}</ul>`;
+// Mục lục theo nhóm sách: mỗi sách là một ô vừa với tên, kèm số đoạn.
+const groupHtml = (ot, H = "h3") => GROUPS.filter(([, a]) => (ot ? a < NT : a >= NT)).map(([g, a, z]) => `<div class="grp"><${H} class="grp-name">${esc(g)}</${H}><ul class="bk">${BOOKS.slice(a, z + 1).map(([n], j) => `<li><a href="${u(bookPath(a + j))}">${esc(n)}<small>${CHS[a + j]}</small></a></li>`).join("")}</ul></div>`).join("");
+const testamentToc = (ot, H2 = "h2", H3 = "h3") => `<section class="tm"><${H2} class="tm-name">${ot ? "Cựu Ước" : "Tân Ước"} <span>${ot ? 39 : 27} sách</span></${H2}>${groupHtml(ot, H3)}</section>`;
 const testament = (b) => (b < NT ? "Cựu Ước" : "Tân Ước");
 
 // ---------- trang chủ ----------
@@ -207,18 +209,19 @@ const testament = (b) => (b < NT ? "Cựu Ước" : "Tân Ước");
   const vt = DATA[vb - 1][vc - 1][vv - 1].replace(/^\(\d+:\d+\)\s*/, "");
   const body = `
 <div class="home"><div class="home-main">
-<div class="date" id="todayDate">Kinh Thánh bản Truyền Thống 1925</div>
-<article class="vod" aria-label="Câu gốc hôm nay"><div class="vod-img" id="vodImgBox" hidden></div><div class="label" id="vodLabel">Câu gốc hôm nay</div>
+<p class="today" id="todayDate">Kinh Thánh bản Truyền Thống 1925</p>
+<article class="vod" id="vod" aria-label="Câu gốc hôm nay"><div class="vod-img" id="vodImgBox" hidden></div><div class="vod-in">
+<div class="vod-label" id="vodLabel">Câu gốc hôm nay</div>
 <blockquote id="vodText">${esc(vt)}</blockquote><cite id="vodRef">${esc(BOOKS[vb - 1][0])} ${vc}:${vv}</cite>
-<div class="row"><a class="btn" id="vodRead" href="${u(chPath(vb - 1, vc))}#v${vv}">Đọc cả đoạn</a><button class="btn ghost" id="vodImg">${ic("share")}Chia sẻ ảnh</button><button class="btn ghost" id="vodCopy">${ic("copy")}Sao chép</button></div></article>
-<a class="continue" id="contBtn" href="${u(chPath(0, 1))}">${ic("book", ' style="color:var(--accent)"')}<span><span class="small muted">Bắt đầu đọc</span><b>Sáng Thế Ký 1</b></span></a>
+<div class="vod-acts"><a class="btn vod-read" id="vodRead" href="${u(chPath(vb - 1, vc))}#v${vv}">Đọc cả đoạn</a><button class="btn vod-ghost" id="vodImg" aria-label="Chia sẻ ảnh câu gốc">${ic("share")}Chia sẻ</button><button class="btn vod-ghost vod-icon" id="vodCopy" aria-label="Sao chép câu gốc" title="Sao chép câu gốc">${ic("copy")}</button></div>
+</div></article>
+<a class="continue" id="contBtn" href="${u(chPath(0, 1))}"><span class="cont-ic">${ic("book")}</span><span><span class="small muted">Bắt đầu đọc</span><b>Sáng Thế Ký 1</b></span>${ic("right", ' style="margin-left:auto;color:var(--muted)"')}</a>
 <div class="section" id="planBox"></div>
 </div><div class="home-side">
 <section class="section toc" aria-labelledby="toc">
 <h2 id="toc">Mục lục</h2>
 <p class="lead">${TOTAL_CH.toLocaleString("vi-VN")} đoạn, ${TOTAL_V.toLocaleString("vi-VN")} câu, theo bản dịch Truyền Thống 1925.</p>
-<h3 class="label" style="margin-top:20px">Cựu Ước · 39 sách</h3>${bookList(0, NT)}
-<h3 class="label" style="margin-top:20px">Tân Ước · 27 sách</h3>${bookList(NT, 66)}
+${testamentToc(true, "h3", "h4")}${testamentToc(false, "h3", "h4")}
 </section>
 <section class="section" aria-labelledby="about">
 <h2 id="about">Về bản dịch này</h2>
@@ -238,8 +241,8 @@ write("muc-luc/index.html", layout({
   title: "Mục lục 66 sách – Kinh Thánh 1925",
   desc: "Danh sách 39 sách Cựu Ước và 27 sách Tân Ước trong Kinh Thánh bản Truyền Thống 1925.",
   canonical: "muc-luc/", page: "toc", tab: "read", wide: true,
-  body: `<h1 class="page">Mục lục</h1><p class="lead">Chọn một sách để xem các đoạn.</p>
-<div class="toc"><h2>Cựu Ước</h2>${bookList(0, NT)}<h2>Tân Ước</h2>${bookList(NT, 66)}</div>`,
+  body: `<h1 class="page">Mục lục</h1><p class="lead">66 sách, chia theo nhóm quen thuộc. Số nhỏ bên cạnh tên là số đoạn.</p>
+<div class="toc toc-page">${testamentToc(true)}${testamentToc(false)}</div>`,
 }));
 
 // ---------- trang sách ----------
@@ -247,7 +250,7 @@ for (let b = 0; b < 66; b++) {
   const name = BOOKS[b][0];
   const intro = INTRO[b] || `Sách ${name} thuộc ${testament(b)}, gồm ${CHS[b]} đoạn.`;
   const body = `<nav class="crumbs" aria-label="Vị trí"><a href="${u()}">Trang chủ</a><span>›</span><a href="${u("muc-luc/")}">Mục lục</a><span>›</span><span>${esc(name)}</span></nav>
-<div class="label" style="margin-top:14px">${testament(b)}</div>
+<div class="label" style="margin-top:14px">${testament(b)}, ${groupOf(b)}</div>
 <h1 class="page">${esc(name)}</h1>
 <p class="lead">${esc(intro)} ${CHS[b]} đoạn, ${DATA[b].reduce((a, c) => a + c.length, 0)} câu.</p>
 <ul class="chs" id="bookChs" data-b="${b}">${DATA[b].map((_, i) => `<li><a href="${u(chPath(b, i + 1))}" data-c="${i + 1}" aria-label="Đoạn ${i + 1}">${i + 1}</a></li>`).join("")}</ul>
@@ -278,7 +281,7 @@ for (let b = 0; b < 66; b++) {
     const navBtn = (x, dir) => x
       ? `<a class="btn" rel="${dir}" href="${u(chPath(x[0], x[1]))}">${dir === "prev" ? ic("left") : ""}${esc(BOOKS[x[0]][0])} ${x[1]}${dir === "next" ? ic("right") : ""}</a>`
       : `<span class="btn" aria-disabled="true">${dir === "prev" ? "Đầu Kinh Thánh" : "Hết Kinh Thánh"}</span>`;
-    const side = `<aside class="side" aria-label="Các đoạn trong sách ${esc(name)}"><div class="label">${testament(b)}</div>
+    const side = `<aside class="side" aria-label="Các đoạn trong sách ${esc(name)}"><div class="label">${testament(b)}, ${groupOf(b)}</div>
 <a class="side-book" href="${u(bookPath(b))}">${esc(name)}</a><div class="small muted">${CHS[b]} đoạn</div>
 <ul class="chs mini">${DATA[b].map((_, i) => `<li><a href="${u(chPath(b, i + 1))}"${i + 1 === c ? ' class="cur" aria-current="page"' : ""}>${i + 1}</a></li>`).join("")}</ul>
 <div class="side-links">${b > 0 ? `<a href="${u(bookPath(b - 1))}">${ic("left")}${esc(BOOKS[b - 1][0])}</a>` : ""}${b < 65 ? `<a href="${u(bookPath(b + 1))}">${esc(BOOKS[b + 1][0])}${ic("right")}</a>` : ""}</div>
@@ -303,17 +306,21 @@ for (let b = 0; b < 66; b++) {
 // ---------- tìm kiếm, đã lưu, trang dự phòng offline, 404 ----------
 write("tim-kiem/index.html", layout({
   title: "Tìm kiếm – Kinh Thánh 1925", desc: "Tìm chữ trong toàn bộ Kinh Thánh 1925, gõ có dấu hoặc không dấu, hoặc gõ tên đoạn như Giăng 3:16.",
-  canonical: "tim-kiem/", page: "search", tab: "search",
-  body: `<h1 class="sr">Tìm kiếm Kinh Thánh</h1>
+  canonical: "tim-kiem/", page: "search", tab: "search", wide: true,
+  body: `<div class="reader"><div class="read-main"><h1 class="sr">Tìm kiếm Kinh Thánh</h1>
 <form class="search-box" role="search" id="sForm" action="${u("tim-kiem/")}">${ic("search", ' style="color:var(--muted)"')}
 <label class="sr" for="q">Từ cần tìm</label><input id="q" name="q" type="search" placeholder="Tìm chữ, hoặc gõ đoạn như “Giăng 3:16”" autocomplete="off" enterkeyhint="search"></form>
 <div class="chips" id="scope" role="group" aria-label="Phạm vi tìm">
 <button class="chip" data-s="all" aria-pressed="true">Cả Kinh Thánh</button><button class="chip" data-s="ot" aria-pressed="false">Cựu Ước</button><button class="chip" data-s="nt" aria-pressed="false">Tân Ước</button><button class="chip" data-s="book" aria-pressed="false" id="scopeBook">Sách đang đọc</button></div>
 <div id="sOut"><p class="muted small">Gõ không dấu cũng tìm được: “yeu thuong” sẽ ra “yêu thương”. Gõ có dấu để tìm đúng từng chữ.</p></div>
-<noscript><p>Trang tìm kiếm cần bật JavaScript.</p></noscript>`,
+<noscript><p>Trang tìm kiếm cần bật JavaScript.</p></noscript></div>
+<aside class="side tips" aria-label="Mẹo tìm kiếm"><h2 class="side-title">Mẹo tìm</h2>
+<dl><dt>Gõ không dấu</dt><dd>“yeu thuong” vẫn ra “yêu thương”. Gõ có dấu để tìm đúng từng chữ.</dd>
+<dt>Mở thẳng một đoạn</dt><dd>Gõ “Giăng 3:16”, “giang 3 16” hoặc “Thi 23”.</dd>
+<dt>Thu hẹp phạm vi</dt><dd>Chọn Cựu Ước, Tân Ước hoặc chỉ sách đang đọc ở hàng nút bên dưới ô tìm.</dd></dl></aside></div>`,
 }));
 write("da-luu/index.html", layout({
-  title: "Đã lưu – Kinh Thánh 1925", desc: "Các câu đã tô màu, ghi chú và đánh dấu.", canonical: "da-luu/", noindex: true, page: "saved", tab: "saved",
+  title: "Đã lưu – Kinh Thánh 1925", desc: "Các câu đã tô màu, ghi chú và đánh dấu.", canonical: "da-luu/", noindex: true, page: "saved", tab: "saved", wide: true,
   body: `<h1 class="page">Đã lưu</h1>
 <div class="seg" role="group" aria-label="Loại đã lưu" id="savedSeg"><button data-k="hl" aria-pressed="true">Tô màu</button><button data-k="notes" aria-pressed="false">Ghi chú</button><button data-k="bm" aria-pressed="false">Đánh dấu</button></div>
 <ul class="saved-list" id="savedList"></ul>

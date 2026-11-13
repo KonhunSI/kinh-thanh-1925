@@ -47,3 +47,10 @@ export const INTRO = {
   44: "Thư Phao-lô trình bày sự công bình bởi đức tin trong Đức Chúa Jêsus Christ.",
   65: "Sự mặc thị cho Giăng về sự đắc thắng sau cùng của Đấng Christ, trời mới và đất mới.",
 };
+
+// Nhóm sách theo cách chia quen thuộc: [tên nhóm, chỉ số sách đầu, chỉ số sách cuối (tính cả)]
+export const GROUPS = [
+  ["Ngũ Kinh", 0, 4], ["Lịch sử", 5, 16], ["Thơ ca", 17, 21], ["Tiên tri lớn", 22, 26], ["Tiên tri nhỏ", 27, 38],
+  ["Phúc Âm", 39, 42], ["Lịch sử", 43, 43], ["Thư của Phao-lô", 44, 56], ["Thư chung", 57, 64], ["Tiên tri", 65, 65],
+];
+export const groupOf = (b) => GROUPS.find(([, a, z]) => b >= a && b <= z)[0];

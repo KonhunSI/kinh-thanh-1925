@@ -1,6 +1,6 @@
 "use strict";
 /*@META@*/
-const { BASE, NT, CHS, VOD_DAYS, VOD_SPECIAL, TET, VODIMG, BOOKS, SLUGS } = META;
+const { BASE, NT, CHS, GROUPS, VOD_DAYS, VOD_SPECIAL, TET, VODIMG, BOOKS, SLUGS } = META;
 const PLANS = {
   year: { name: "Trọn Kinh Thánh trong 1 năm", desc: "Từ Sáng Thế Ký đến Khải Huyền, khoảng 3–4 đoạn mỗi ngày.", days: 365, from: 0, to: 66 },
   nt90: { name: "Tân Ước trong 90 ngày", desc: "260 đoạn Tân Ước, khoảng 3 đoạn mỗi ngày.", days: 90, from: NT, to: 66 },
@@ -91,6 +91,7 @@ const bookKeys = BOOKS.map(([n, a]) => {
 });
 let pickTab = "ot";
 function curBook() { const b = document.body.dataset.b; return b != null ? +b : S.pos ? S.pos.b : -1; }
+const chips = (list, cb) => list.map((i) => `<li><button data-b="${i}"${i === cb ? ' class="cur" aria-current="true"' : ""}>${esc(BOOKS[i][0])}<small>${CHS[i]}</small></button></li>`).join("");
 function renderBooks(filter = "") {
   $("#pickTitle").textContent = "Chọn sách"; $("#pickBack").hidden = true;
   const f = fold(filter).replace(/[\s-]/g, "");
@@ -98,7 +99,8 @@ function renderBooks(filter = "") {
   const cb = curBook();
   $("#pickBody").innerHTML = `<label class="sr" for="bf">Lọc tên sách</label><input class="filter" id="bf" placeholder="Gõ tên sách…" value="${esc(filter)}">
    ${f ? "" : `<div class="seg" style="margin-top:12px"><button data-t="ot" aria-pressed="${pickTab === "ot"}">Cựu Ước · 39</button><button data-t="nt" aria-pressed="${pickTab === "nt"}">Tân Ước · 27</button></div>`}
-   <ul class="books">${list.map((i) => `<li><button data-b="${i}" class="${i === cb ? "cur" : ""}">${esc(BOOKS[i][0])}</button></li>`).join("") || `<li class="muted">Không thấy sách nào.</li>`}</ul>`;
+   ${f ? `<ul class="bk" style="margin-top:12px">${chips(list, cb) || `<li class="muted">Không thấy sách nào.</li>`}</ul>`
+       : GROUPS.filter(([, a]) => (pickTab === "ot" ? a < NT : a >= NT)).map(([g, a, z]) => `<div class="grp"><h4 class="grp-name">${esc(g)}</h4><ul class="bk">${chips(Array.from({ length: z - a + 1 }, (_, j) => a + j), cb)}</ul></div>`).join("")}`;
   const bf = $("#bf");
   bf.oninput = () => { const p = bf.selectionStart; renderBooks(bf.value); const n = $("#bf"); n.focus(); n.setSelectionRange(p, p); };
   $$("#pickBody [data-t]").forEach((x) => (x.onclick = () => { pickTab = x.dataset.t; renderBooks(); }));
@@ -370,10 +372,10 @@ const cleanVerse = (t) => t.replace(/^\(\d+:\d+\)\s*/, "");
 /* ---------- Trang chủ ---------- */
 async function initHome() {
   const d = new Date();
-  $("#todayDate").textContent = `${WD[d.getDay()]}, ngày ${d.getDate()} tháng ${d.getMonth() + 1}, ${d.getFullYear()}`;
+  $("#todayDate").textContent = `${WD[d.getDay()]}, ${d.getDate()} tháng ${d.getMonth() + 1}`;
   const vod = vodFor(d), [vb, vc, vv] = vod.ref, b = vb - 1;
   if (vod.label) $("#vodLabel").textContent = "Câu gốc hôm nay · " + vod.label;
-  if (vod.img) { const box = $("#vodImgBox"); box.style.backgroundImage = `url("${vod.img}")`; box.hidden = false; }
+  if (vod.img) { const box = $("#vodImgBox"); box.style.backgroundImage = `url("${vod.img}")`; box.hidden = false; $("#vod").classList.add("has-img"); }
   $("#vodRef").textContent = refName(b, vc, vv); $("#vodRead").href = chUrl(b, vc, vv);
   let vt = $("#vodText").textContent;
   try { const data = await loadBook(b); vt = cleanVerse(data[vc - 1][vv - 1]); $("#vodText").textContent = vt; } catch (e) {}
