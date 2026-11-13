@@ -1,0 +1,29 @@
+{
+ "name": "Kinh Thánh 1925",
+ "short_name": "Kinh Thánh",
+ "description": "Kinh Thánh bản Truyền Thống 1925",
+ "lang": "vi",
+ "start_url": "/",
+ "scope": "/",
+ "display": "standalone",
+ "background_color": "#F3F4F1",
+ "theme_color": "#8A1C2B",
+ "icons": [
+  {
+   "src": "/assets/icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "/assets/icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  },
+  {
+   "src": "/assets/icon-512-maskable.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ]
+}
