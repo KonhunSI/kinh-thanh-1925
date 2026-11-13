@@ -84,6 +84,7 @@ main{padding-block:20px calc(150px + env(safe-area-inset-bottom,0px))}
 .vod{margin:14px 0 24px;padding:22px 22px 18px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--line);position:relative}
 .vod::before{content:"";position:absolute;top:-1px;right:22px;width:14px;height:34px;background:var(--accent);clip-path:polygon(0 0,100% 0,100% 100%,50% 80%,0 100%)}
 .label{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.vod-img{height:180px;margin:-22px -22px 18px;border-radius:var(--radius) var(--radius) 0 0;background:var(--sunk) center/cover no-repeat}
 .vod blockquote{font-family:var(--f-text);font-size:clamp(20px,4.6vw,24px);line-height:1.55;margin:10px 0;text-wrap:pretty}
 .vod cite{font-style:normal;font-weight:600}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}

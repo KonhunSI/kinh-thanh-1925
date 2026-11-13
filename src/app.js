@@ -1,6 +1,6 @@
 "use strict";
 /*@META@*/
-const { BASE, NT, CHS, VOD, BOOKS, SLUGS } = META;
+const { BASE, NT, CHS, VOD_DAYS, VOD_SPECIAL, TET, VODIMG, BOOKS, SLUGS } = META;
 const PLANS = {
   year: { name: "Trọn Kinh Thánh trong 1 năm", desc: "Từ Sáng Thế Ký đến Khải Huyền, khoảng 3–4 đoạn mỗi ngày.", days: 365, from: 0, to: 66 },
   nt90: { name: "Tân Ước trong 90 ngày", desc: "260 đoạn Tân Ước, khoảng 3 đoạn mỗi ngày.", days: 90, from: NT, to: 66 },
@@ -238,18 +238,26 @@ $("#noteDel").onclick = () => { delete S.notes[key(noteFor.b, noteFor.c, noteFor
 
 /* ---------- Ảnh chia sẻ ---------- */
 let lastBlob = null, lastName = "";
-async function openImage(text, ref) {
+const loadImg = (src) => new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = src; });
+async function openImage(text, ref, bg = null) {
+  text = cleanVerse(text);
   try { await Promise.all([document.fonts.load('400 48px "Literata"'), document.fonts.load('600 30px "Be Vietnam Pro"')]); } catch (e) {}
   const W = 1080, H = 1350, cv = document.createElement("canvas"); cv.width = W; cv.height = H; const g = cv.getContext("2d");
   g.fillStyle = "#1B2028"; g.fillRect(0, 0, W, H);
+  let bgIm = null; if (bg) { try { bgIm = await loadImg(bg); } catch (e) {} }
+  if (bgIm) { // ảnh nền phủ kín khung, thêm lớp tối để chữ dễ đọc
+    const s = Math.max(W / bgIm.width, H / bgIm.height), w = bgIm.width * s, h = bgIm.height * s; g.drawImage(bgIm, (W - w) / 2, (H - h) / 2, w, h);
+    const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "rgba(12,14,18,.55)"); gr.addColorStop(.5, "rgba(12,14,18,.62)"); gr.addColorStop(1, "rgba(12,14,18,.78)"); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  }
   g.fillStyle = "#A3283A"; g.beginPath(); g.moveTo(860, 0); g.lineTo(930, 0); g.lineTo(930, 190); g.lineTo(895, 160); g.lineTo(860, 190); g.closePath(); g.fill();
   const pad = 110, maxW = W - pad * 2; let size = 60, lines;
   const wrap = (fs) => { g.font = `400 ${fs}px Literata, Georgia, serif`; const out = []; let cur = ""; for (const w of `“${text}”`.split(" ")) { const t = cur ? cur + " " + w : w; if (g.measureText(t).width > maxW && cur) { out.push(cur); cur = w; } else cur = t; } if (cur) out.push(cur); return out; };
   for (;;) { lines = wrap(size); if (lines.length * size * 1.45 < H - 560 || size <= 30) break; size -= 3; }
   const lh = size * 1.45; let y = (H - lines.length * lh) / 2 - 30; g.fillStyle = "#F1EEE7"; g.textBaseline = "top";
   for (const l of lines) { g.fillText(l, pad, y); y += lh; }
-  g.font = '600 36px "Be Vietnam Pro", system-ui, sans-serif'; g.fillStyle = "#E27C89"; g.fillText(ref, pad, y + 36);
-  g.font = '500 26px "Be Vietnam Pro", system-ui, sans-serif'; g.fillStyle = "#8D95A0"; g.fillText("KINH THÁNH · BẢN TRUYỀN THỐNG 1925", pad, H - 130);
+  g.font = '600 36px "Be Vietnam Pro", system-ui, sans-serif'; g.fillStyle = bgIm ? "#F6C7CE" : "#E27C89"; g.fillText(ref, pad, y + 36);
+  g.font = '500 26px "Be Vietnam Pro", system-ui, sans-serif'; g.fillStyle = bgIm ? "#C9CED6" : "#8D95A0"; g.fillText("KINH THÁNH · BẢN TRUYỀN THỐNG 1925", pad, H - 130);
+  g.fillText("kinhthanh1925.com", pad, H - 92);
   lastBlob = await new Promise((r) => cv.toBlob(r, "image/png"));
   lastName = "kinh-thanh-" + fold(ref).replace(/[^a-z0-9]+/g, "-").replace(/-$/, "") + ".png";
   $("#shareImg").src = URL.createObjectURL(lastBlob); $("#shareImg").alt = `Ảnh câu ${ref}`;
@@ -303,17 +311,39 @@ $("#pPause").onclick = () => { if (!audio) return; if (audio.paused) speechSynth
 $("#pRate").onchange = (e) => { S.rate = +e.target.value; save(); if (audio) { const v = audio.cur; stopAudio(); setTimeout(() => startAudio(v), 80); } };
 window.addEventListener("pagehide", () => { try { speechSynthesis.cancel(); } catch (e) {} });
 
+/* ---------- Câu gốc mỗi ngày ---------- */
+const pad2 = (n) => String(n).padStart(2, "0");
+const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+function easter(y) { // Lịch Gregory
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1; return new Date(y, mo - 1, da);
+}
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const SPECIAL_LABEL = { GOODFRI: "Thứ Sáu Tuần Thánh", EASTER: "Chúa Nhật Phục Sinh", PENTECOST: "Lễ Ngũ Tuần", TET1: "Mùng 1 Tết", TET2: "Mùng 2 Tết", TET3: "Mùng 3 Tết" };
+function vodFor(d) {
+  const today = ymd(d), y = d.getFullYear(), ea = easter(y);
+  const sp = { [ymd(addDays(ea, -2))]: "GOODFRI", [ymd(ea)]: "EASTER", [ymd(addDays(ea, 49))]: "PENTECOST" };
+  if (TET[y]) { const [ty, tm, td] = TET[y].split("-").map(Number); for (let n = 0; n < 3; n++) sp[ymd(new Date(ty, tm - 1, td + n))] = "TET" + (n + 1); }
+  const key = sp[today] || `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const ref = VOD_SPECIAL[key] || VOD_DAYS[key] || VOD_DAYS["01-01"];
+  const img = VODIMG.find((f) => f.replace(/\.\w+$/, "") === key);
+  return { key, ref, label: SPECIAL_LABEL[key] || "", img: img ? `${BASE}assets/vod/${img}` : null };
+}
+const cleanVerse = (t) => t.replace(/^\(\d+:\d+\)\s*/, "");
+
 /* ---------- Trang chủ ---------- */
 async function initHome() {
   const d = new Date();
   $("#todayDate").textContent = `${WD[d.getDay()]}, ngày ${d.getDate()} tháng ${d.getMonth() + 1}, ${d.getFullYear()}`;
-  const doy = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 864e5);
-  const [vb, vc, vv] = VOD[doy % VOD.length], b = vb - 1;
+  const vod = vodFor(d), [vb, vc, vv] = vod.ref, b = vb - 1;
+  if (vod.label) $("#vodLabel").textContent = "Câu gốc hôm nay · " + vod.label;
+  if (vod.img) { const box = $("#vodImgBox"); box.style.backgroundImage = `url("${vod.img}")`; box.hidden = false; }
   $("#vodRef").textContent = refName(b, vc, vv); $("#vodRead").href = chUrl(b, vc, vv);
   let vt = $("#vodText").textContent;
-  try { const data = await loadBook(b); vt = data[vc - 1][vv - 1]; $("#vodText").textContent = vt; } catch (e) {}
+  try { const data = await loadBook(b); vt = cleanVerse(data[vc - 1][vv - 1]); $("#vodText").textContent = vt; } catch (e) {}
   $("#vodCopy").onclick = () => copyText(`“${vt}” (${refName(b, vc, vv)}, Kinh Thánh 1925)`);
-  $("#vodImg").onclick = () => openImage(vt, refName(b, vc, vv));
+  $("#vodImg").onclick = () => openImage(vt, refName(b, vc, vv), vod.img);
   if (S.pos) { const cb = $("#contBtn"); cb.href = chUrl(S.pos.b, S.pos.c); cb.querySelector(".muted").textContent = "Đọc tiếp"; cb.querySelector("b").textContent = refName(S.pos.b, S.pos.c); }
   renderPlan();
 }

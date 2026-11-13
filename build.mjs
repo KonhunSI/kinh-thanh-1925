@@ -3,7 +3,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { BOOKS, NT, SLUGS, VOD, INTRO, fold } from "./src/books.mjs";
+import { BOOKS, NT, SLUGS, INTRO, fold } from "./src/books.mjs";
+import { VOD_DAYS, VOD_SPECIAL, TET } from "./src/vod.mjs";
 
 const ROOT = path.dirname(new URL(import.meta.url).pathname);
 const OUT = path.join(ROOT, "dist");
@@ -35,7 +36,10 @@ fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
 const css = fs.readFileSync(path.join(ROOT, "src/style.css"), "utf8");
 const DATAV = crypto.createHash("sha1").update(JSON.stringify(DATA)).digest("hex").slice(0, 8);
-const META = { BASE, NT, CHS, VOD, BOOKS, SLUGS, DATAV };
+// Ảnh nền câu gốc: src/vod-img/<khóa>.jpg (khóa: 01-01 … 12-31, 02-29, GOODFRI, EASTER, PENTECOST, TET1–3)
+const VOD_IMG_DIR = path.join(ROOT, "src/vod-img");
+const VODIMG = fs.existsSync(VOD_IMG_DIR) ? fs.readdirSync(VOD_IMG_DIR).filter((f) => /\.(jpe?g|webp)$/i.test(f)).sort() : [];
+const META = { BASE, NT, CHS, VOD_DAYS, VOD_SPECIAL, TET, VODIMG, BOOKS, SLUGS, DATAV };
 const js = fs.readFileSync(path.join(ROOT, "src/app.js"), "utf8").replace("/*@META@*/", `const META=${JSON.stringify(META)};`);
 const hash = (s) => crypto.createHash("sha1").update(s).digest("hex").slice(0, 8);
 const CSS_V = hash(css), JS_V = hash(js);
@@ -43,6 +47,7 @@ const VERSION = hash(css + js + TOTAL_V + BASE + DATAV);
 write("assets/style.css", css);
 write("assets/app.js", js);
 for (const f of fs.readdirSync(path.join(ROOT, "src/static"))) fs.copyFileSync(path.join(ROOT, "src/static", f), path.join(OUT, "assets", f));
+for (const f of VODIMG) { fs.mkdirSync(path.join(OUT, "assets/vod"), { recursive: true }); fs.copyFileSync(path.join(VOD_IMG_DIR, f), path.join(OUT, "assets/vod", f)); }
 for (let i = 0; i < 66; i++) write(`data/b${String(i + 1).padStart(2, "0")}.json`, JSON.stringify(DATA[i]));
 
 const SPRITE = `<svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -191,12 +196,12 @@ const testament = (b) => (b < NT ? "Cựu Ước" : "Tân Ước");
 
 // ---------- trang chủ ----------
 {
-  const [vb, vc, vv] = VOD[0];
-  const vt = DATA[vb - 1][vc - 1][vv - 1];
+  const [vb, vc, vv] = VOD_DAYS["01-01"];
+  const vt = DATA[vb - 1][vc - 1][vv - 1].replace(/^\(\d+:\d+\)\s*/, "");
   const body = `
 <div class="home"><div class="home-main">
 <div class="date" id="todayDate">Kinh Thánh bản Truyền Thống 1925</div>
-<article class="vod" aria-label="Câu gốc hôm nay"><div class="label">Câu gốc hôm nay</div>
+<article class="vod" aria-label="Câu gốc hôm nay"><div class="vod-img" id="vodImgBox" hidden></div><div class="label" id="vodLabel">Câu gốc hôm nay</div>
 <blockquote id="vodText">${esc(vt)}</blockquote><cite id="vodRef">${esc(BOOKS[vb - 1][0])} ${vc}:${vv}</cite>
 <div class="row"><a class="btn" id="vodRead" href="${u(chPath(vb - 1, vc))}#v${vv}">Đọc cả đoạn</a><button class="btn ghost" id="vodImg">${ic("image")}Ảnh chia sẻ</button><button class="btn ghost" id="vodCopy">${ic("copy")}Sao chép</button></div></article>
 <a class="continue" id="contBtn" href="${u(chPath(0, 1))}">${ic("book", ' style="color:var(--accent)"')}<span><span class="small muted">Bắt đầu đọc</span><b>Sáng Thế Ký 1</b></span></a>
