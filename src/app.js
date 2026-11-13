@@ -265,20 +265,28 @@ async function openImage(text, ref, bg = null, url = "") {
   // data: URL để nhấn giữ ảnh lưu/chia sẻ được cả trong trình duyệt của Zalo, Facebook
   $("#shareImg").src = cv.toDataURL("image/jpeg", 0.9); $("#shareImg").alt = `Ảnh câu ${ref}`;
   lastFile = new File([lastBlob], lastName, { type: "image/jpeg" });
+  lastPng = await new Promise((r) => cv.toBlob(r, "image/png")); // bộ nhớ tạm của iPhone/Chrome chỉ nhận PNG
   const canFile = !!(navigator.canShare && (() => { try { return navigator.canShare({ files: [lastFile] }); } catch (e) { return false; } })());
   const canCopyImg = !!(navigator.clipboard && window.ClipboardItem);
-  const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+  const ua = navigator.userAgent;
+  const mobile = /Android|iPhone|iPad|iPod/i.test(ua) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+  const inApp = /Zalo|FBAN|FBAV|FB_IAB|Instagram|Messenger|Line\//i.test(ua);
+  const iosOther = /CriOS|FxiOS|EdgiOS/.test(ua);
   $("#imgShare").hidden = !(canFile || navigator.share);
-  $("#imgCopy").hidden = !canCopyImg || mobile;
-  $("#imgFb").hidden = mobile;
+  $("#imgCopy").hidden = !canCopyImg || canFile;
+  $("#imgCopy").classList.toggle("primary", $("#imgShare").hidden);
+  $("#imgFb").hidden = mobile || canFile;
   $("#imgFb").href = "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(lastUrl);
-  const hint = $("#shareHint");
-  if (canFile) hint.hidden = true;
-  else if (mobile) { hint.textContent = "Nhấn giữ vào ảnh để lưu hoặc gửi. Nếu đang mở trong Zalo hay Facebook, bạn có thể mở trang bằng Safari/Chrome để chia sẻ ảnh trực tiếp."; hint.hidden = false; }
-  else { hint.textContent = "Bấm “Sao chép ảnh” rồi dán (Ctrl+V) vào Zalo, Messenger hoặc tin nhắn. Hoặc tải ảnh về để đăng lên mạng xã hội."; hint.hidden = !canCopyImg; }
+  const hint = $("#shareHint"); let h = "";
+  if (canFile) h = "";
+  else if (inApp) h = "Bạn đang mở trang bên trong ứng dụng khác. Nhấn giữ vào ảnh để lưu, hoặc bấm nút ••• chọn “Mở bằng trình duyệt” để có nút Chia sẻ thẳng sang Zalo, Facebook.";
+  else if (iosOther) h = (canCopyImg ? "Bấm “Sao chép ảnh” rồi mở Zalo, Messenger… và dán vào ô chat. " : "") + "Nhấn giữ vào ảnh để lưu vào thư viện Ảnh. Mở trang bằng Safari sẽ có nút Chia sẻ thẳng sang Zalo, Facebook.";
+  else if (mobile) h = (canCopyImg ? "Bấm “Sao chép ảnh” rồi dán vào Zalo, Messenger… " : "") + "Hoặc nhấn giữ vào ảnh để lưu.";
+  else if (canCopyImg) h = "Bấm “Sao chép ảnh” rồi dán (Ctrl+V) vào Zalo, Messenger hoặc tin nhắn. Hoặc tải ảnh về để đăng lên mạng xã hội.";
+  hint.textContent = h; hint.hidden = !h;
   $("#dImg").showModal();
 }
-let lastFile = null, lastUrl = "", lastRef = "";
+let lastFile = null, lastUrl = "", lastRef = "", lastPng = null;
 $("#imgShare").onclick = async () => {
   try {
     if (navigator.canShare && navigator.canShare({ files: [lastFile] })) await navigator.share({ files: [lastFile], title: lastRef });
@@ -286,7 +294,7 @@ $("#imgShare").onclick = async () => {
   } catch (e) { if (e && e.name !== "AbortError") toast("Máy chưa hỗ trợ chia sẻ, hãy tải ảnh về"); }
 };
 $("#imgCopy").onclick = async () => {
-  try { await navigator.clipboard.write([new ClipboardItem({ [lastBlob.type]: lastBlob })]); toast("Đã sao chép ảnh, dán vào nơi muốn gửi"); }
+  try { await navigator.clipboard.write([new ClipboardItem({ "image/png": lastPng || lastBlob })]); toast("Đã sao chép ảnh, dán vào nơi muốn gửi"); }
   catch (e) {
     try { const png = await new Promise((r) => { const im = new Image(); im.onload = () => { const c = document.createElement("canvas"); c.width = im.width; c.height = im.height; c.getContext("2d").drawImage(im, 0, 0); c.toBlob(r, "image/png"); }; im.src = $("#shareImg").src; });
       await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]); toast("Đã sao chép ảnh, dán vào nơi muốn gửi"); }
