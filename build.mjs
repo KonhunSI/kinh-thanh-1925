@@ -64,6 +64,8 @@ const SPRITE = `<svg width="0" height="0" style="position:absolute" aria-hidden=
 <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
 <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4h14v12l-4 4H5V4Z"/><path d="M15 20v-4h4M9 9h6M9 13h4"/></symbol>
 <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></symbol>
+<symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 13v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6"/></symbol>
+<symbol id="i-down2" viewBox="0 0 24 24"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></symbol>
 <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></symbol>
 <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8L7 4Z"/></symbol>
 <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
@@ -146,7 +148,7 @@ ${body}
       <button id="aNote">${ic("note")}Ghi chú</button>
       <button id="aBm">${ic("saved")}<span id="aBmLabel">Đánh dấu</span></button>
       <button id="aCopy">${ic("copy")}Sao chép</button>
-      <button id="aImg">${ic("image")}Ảnh chia sẻ</button>
+      <button id="aImg">${ic("share")}Chia sẻ ảnh</button>
       <button id="aListen">${ic("play")}Nghe từ đây</button>
     </div>
   </div>
@@ -176,8 +178,13 @@ ${tabs.map(([k, href, icon, label]) => `<a href="${u(href)}" data-tab="${k}"${ta
 </div></dialog>
 <dialog id="dImg"><div class="dlg">
   <div class="dlg-head"><h3>Ảnh câu Kinh Thánh</h3><button class="ibtn" data-close aria-label="Đóng">${ic("x")}</button></div>
-  <div class="dlg-body"><img id="shareImg" class="share-img" alt=""></div>
-  <div class="dlg-foot"><button class="btn" id="imgSave">Tải ảnh về</button><button class="btn primary" id="imgShare" hidden>Chia sẻ</button></div>
+  <div class="dlg-body"><img id="shareImg" class="share-img" alt=""><p class="share-hint muted" id="shareHint" hidden></p></div>
+  <div class="dlg-foot share-foot">
+    <button class="btn primary" id="imgShare">${ic("share")}Chia sẻ</button>
+    <button class="btn" id="imgCopy" hidden>${ic("copy")}Sao chép ảnh</button>
+    <a class="btn" id="imgFb" target="_blank" rel="noopener" hidden>Facebook</a>
+    <button class="btn" id="imgSave">${ic("down2")}Tải ảnh về</button>
+  </div>
 </div></dialog>
 <div class="toast" id="toast" role="status" hidden></div>
 <script src="${u("assets/app.js")}?v=${JS_V}" defer></script>
@@ -203,7 +210,7 @@ const testament = (b) => (b < NT ? "Cựu Ước" : "Tân Ước");
 <div class="date" id="todayDate">Kinh Thánh bản Truyền Thống 1925</div>
 <article class="vod" aria-label="Câu gốc hôm nay"><div class="vod-img" id="vodImgBox" hidden></div><div class="label" id="vodLabel">Câu gốc hôm nay</div>
 <blockquote id="vodText">${esc(vt)}</blockquote><cite id="vodRef">${esc(BOOKS[vb - 1][0])} ${vc}:${vv}</cite>
-<div class="row"><a class="btn" id="vodRead" href="${u(chPath(vb - 1, vc))}#v${vv}">Đọc cả đoạn</a><button class="btn ghost" id="vodImg">${ic("image")}Ảnh chia sẻ</button><button class="btn ghost" id="vodCopy">${ic("copy")}Sao chép</button></div></article>
+<div class="row"><a class="btn" id="vodRead" href="${u(chPath(vb - 1, vc))}#v${vv}">Đọc cả đoạn</a><button class="btn ghost" id="vodImg">${ic("share")}Chia sẻ ảnh</button><button class="btn ghost" id="vodCopy">${ic("copy")}Sao chép</button></div></article>
 <a class="continue" id="contBtn" href="${u(chPath(0, 1))}">${ic("book", ' style="color:var(--accent)"')}<span><span class="small muted">Bắt đầu đọc</span><b>Sáng Thế Ký 1</b></span></a>
 <div class="section" id="planBox"></div>
 </div><div class="home-side">

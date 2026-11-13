@@ -219,7 +219,7 @@ $("#aBm").onclick = () => {
   save(); toast(all ? "Đã bỏ đánh dấu" : "Đã đánh dấu"); clearSel();
 };
 $("#aNote").onclick = () => openNote(Math.min(...sel));
-$("#aImg").onclick = () => { const s = selected(); openImage(s.text, s.ref); clearSel(); };
+$("#aImg").onclick = () => { const s = selected(); openImage(s.text, s.ref, null, chUrl(CH.b, CH.c, s.vs[0])); clearSel(); };
 $("#aListen").onclick = () => { const from = Math.min(...sel); clearSel(); startAudio(from); };
 
 /* ---------- Ghi chú ---------- */
@@ -239,7 +239,7 @@ $("#noteDel").onclick = () => { delete S.notes[key(noteFor.b, noteFor.c, noteFor
 /* ---------- Ảnh chia sẻ ---------- */
 let lastBlob = null, lastName = "";
 const loadImg = (src) => new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = src; });
-async function openImage(text, ref, bg = null) {
+async function openImage(text, ref, bg = null, url = "") {
   text = cleanVerse(text);
   try { await Promise.all([document.fonts.load('400 48px "Literata"'), document.fonts.load('600 30px "Be Vietnam Pro"')]); } catch (e) {}
   const W = 1080, H = 1350, cv = document.createElement("canvas"); cv.width = W; cv.height = H; const g = cv.getContext("2d");
@@ -258,14 +258,41 @@ async function openImage(text, ref, bg = null) {
   g.font = '600 36px "Be Vietnam Pro", system-ui, sans-serif'; g.fillStyle = bgIm ? "#F6C7CE" : "#E27C89"; g.fillText(ref, pad, y + 36);
   g.font = '500 26px "Be Vietnam Pro", system-ui, sans-serif'; g.fillStyle = bgIm ? "#C9CED6" : "#8D95A0"; g.fillText("KINH THÁNH · BẢN TRUYỀN THỐNG 1925", pad, H - 130);
   g.fillText("kinhthanh1925.com", pad, H - 92);
-  lastBlob = await new Promise((r) => cv.toBlob(r, "image/png"));
-  lastName = "kinh-thanh-" + fold(ref).replace(/[^a-z0-9]+/g, "-").replace(/-$/, "") + ".png";
-  $("#shareImg").src = URL.createObjectURL(lastBlob); $("#shareImg").alt = `Ảnh câu ${ref}`;
-  const file = new File([lastBlob], lastName, { type: "image/png" });
-  $("#imgShare").hidden = !(navigator.canShare && navigator.canShare({ files: [file] }));
-  $("#imgShare").onclick = () => navigator.share({ files: [file], title: ref }).catch(() => {});
+  lastBlob = await new Promise((r) => cv.toBlob(r, "image/jpeg", 0.92));
+  lastName = "kinh-thanh-" + fold(ref).replace(/[^a-z0-9]+/g, "-").replace(/-$/, "") + ".jpg";
+  lastUrl = location.origin + (url || location.pathname);
+  lastRef = ref;
+  // data: URL để nhấn giữ ảnh lưu/chia sẻ được cả trong trình duyệt của Zalo, Facebook
+  $("#shareImg").src = cv.toDataURL("image/jpeg", 0.9); $("#shareImg").alt = `Ảnh câu ${ref}`;
+  lastFile = new File([lastBlob], lastName, { type: "image/jpeg" });
+  const canFile = !!(navigator.canShare && (() => { try { return navigator.canShare({ files: [lastFile] }); } catch (e) { return false; } })());
+  const canCopyImg = !!(navigator.clipboard && window.ClipboardItem);
+  const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+  $("#imgShare").hidden = !(canFile || navigator.share);
+  $("#imgCopy").hidden = !canCopyImg || mobile;
+  $("#imgFb").hidden = mobile;
+  $("#imgFb").href = "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(lastUrl);
+  const hint = $("#shareHint");
+  if (canFile) hint.hidden = true;
+  else if (mobile) { hint.textContent = "Nhấn giữ vào ảnh để lưu hoặc gửi. Nếu đang mở trong Zalo hay Facebook, bạn có thể mở trang bằng Safari/Chrome để chia sẻ ảnh trực tiếp."; hint.hidden = false; }
+  else { hint.textContent = "Bấm “Sao chép ảnh” rồi dán (Ctrl+V) vào Zalo, Messenger hoặc tin nhắn. Hoặc tải ảnh về để đăng lên mạng xã hội."; hint.hidden = !canCopyImg; }
   $("#dImg").showModal();
 }
+let lastFile = null, lastUrl = "", lastRef = "";
+$("#imgShare").onclick = async () => {
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [lastFile] })) await navigator.share({ files: [lastFile], title: lastRef });
+    else await navigator.share({ title: lastRef, text: `${lastRef} – Kinh Thánh 1925`, url: lastUrl });
+  } catch (e) { if (e && e.name !== "AbortError") toast("Máy chưa hỗ trợ chia sẻ, hãy tải ảnh về"); }
+};
+$("#imgCopy").onclick = async () => {
+  try { await navigator.clipboard.write([new ClipboardItem({ [lastBlob.type]: lastBlob })]); toast("Đã sao chép ảnh, dán vào nơi muốn gửi"); }
+  catch (e) {
+    try { const png = await new Promise((r) => { const im = new Image(); im.onload = () => { const c = document.createElement("canvas"); c.width = im.width; c.height = im.height; c.getContext("2d").drawImage(im, 0, 0); c.toBlob(r, "image/png"); }; im.src = $("#shareImg").src; });
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]); toast("Đã sao chép ảnh, dán vào nơi muốn gửi"); }
+    catch (e2) { toast("Không sao chép được, hãy tải ảnh về"); }
+  }
+};
 $("#imgSave").onclick = () => { if (lastBlob) downloadBlob(lastBlob, lastName); };
 
 /* ---------- Nghe đọc (giọng đọc của máy) ---------- */
@@ -343,7 +370,7 @@ async function initHome() {
   let vt = $("#vodText").textContent;
   try { const data = await loadBook(b); vt = cleanVerse(data[vc - 1][vv - 1]); $("#vodText").textContent = vt; } catch (e) {}
   $("#vodCopy").onclick = () => copyText(`“${vt}” (${refName(b, vc, vv)}, Kinh Thánh 1925)`);
-  $("#vodImg").onclick = () => openImage(vt, refName(b, vc, vv), vod.img);
+  $("#vodImg").onclick = () => openImage(vt, refName(b, vc, vv), vod.img, chUrl(b, vc, vv));
   if (S.pos) { const cb = $("#contBtn"); cb.href = chUrl(S.pos.b, S.pos.c); cb.querySelector(".muted").textContent = "Đọc tiếp"; cb.querySelector("b").textContent = refName(S.pos.b, S.pos.c); }
   renderPlan();
 }
