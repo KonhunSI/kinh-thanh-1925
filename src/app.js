@@ -12,7 +12,7 @@ const WD = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", 
 const KEY = "kt1925";
 const DEF = { pos: null, size: 19, fam: "serif", lay: "flow", theme: "auto", rate: 1, hl: {}, notes: {}, bm: {}, plan: null };
 let S = (() => { try { return Object.assign({}, DEF, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) { return Object.assign({}, DEF); } })();
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast("Trình duyệt không cho lưu dữ liệu. Kiểm tra chế độ ẩn danh."); } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast("Trình duyệt không cho lưu dữ liệu. Kiểm tra chế độ ẩn danh."); return; } stamp(); }
 
 /* ---------- Tiện ích ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -381,8 +381,13 @@ async function initHome() {
   try { const data = await loadBook(b); vt = cleanVerse(data[vc - 1][vv - 1]); $("#vodText").textContent = vt; } catch (e) {}
   $("#vodCopy").onclick = () => copyText(`“${vt}” (${refName(b, vc, vv)}, Kinh Thánh 1925)`);
   $("#vodImg").onclick = () => openImage(vt, refName(b, vc, vv), vod.img, chUrl(b, vc, vv));
-  if (S.pos) { const cb = $("#contBtn"); cb.href = chUrl(S.pos.b, S.pos.c); cb.querySelector(".muted").textContent = "Đọc tiếp"; cb.querySelector("b").textContent = refName(S.pos.b, S.pos.c); }
+  contCard();
   renderPlan();
+}
+function contCard() {
+  const cb = $("#contBtn"); if (!cb) return;
+  const [b, c, lab] = S.pos ? [S.pos.b, S.pos.c, "Đọc tiếp"] : [0, 1, "Bắt đầu đọc"];
+  cb.href = chUrl(b, c); cb.querySelector(".muted").textContent = lab; cb.querySelector("b").textContent = refName(b, c);
 }
 function renderPlan() {
   const box = $("#planBox"); let h;
@@ -472,7 +477,14 @@ function initSaved() {
     catch (_) { toast("Tệp này không phải bản sao lưu của Kinh Thánh 1925"); }
     e.target.value = "";
   };
+  $("#syncCardBtn").onclick = () => openAcct();
+  syncCard();
   renderSaved();
+}
+function syncCard() {
+  const t = $("#syncCardText"), b = $("#syncCardBtn"); if (!t) return;
+  t.textContent = user ? `Đang đồng bộ với tài khoản ${user.email || user.name || ""}. Tô màu, ghi chú và kế hoạch đọc có trên mọi thiết bị bạn đăng nhập.` : "Tô màu, ghi chú và kế hoạch đọc đang lưu trên trình duyệt này. Đăng nhập để giữ chúng trên mọi thiết bị, hoặc tải bản sao lưu.";
+  b.hidden = !!user;
 }
 async function renderSaved() {
   const L = $("#savedList"), src = S[savedKind];
@@ -509,6 +521,258 @@ async function initShell() {
   initChapter(b, c);
 }
 
+
+/* ---------- Tài khoản và đồng bộ ---------- */
+// Dữ liệu cá nhân được "trải phẳng" thành từng mục (h|câu, n|câu, b|câu, p, d|đoạn, pos). Mỗi mục có dấu thời gian
+// sửa gần nhất; khi đồng bộ, mục nào sửa sau thì thắng, kể cả việc xóa. Lần đầu đăng nhập thì gộp cả hai bên.
+const MKEY = "kt1925m", UKEY = "kt1925u", DAY = 864e5;
+const lsGet = (k) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+let user = lsGet(UKEY), fb = null, fbP = null, syncT = null, syncing = null, syncErr = false;
+function flat(s) {
+  const o = {};
+  for (const k in s.hl) o["h|" + k] = s.hl[k];
+  for (const k in s.notes) o["n|" + k] = s.notes[k];
+  for (const k in s.bm) o["b|" + k] = s.bm[k];
+  if (s.plan) { o.p = { id: s.plan.id, start: s.plan.start }; const tag = planTag(o.p); for (const k in s.plan.done) o["d|" + tag + k] = 1; }
+  if (s.pos) o.pos = { b: s.pos.b, c: s.pos.c };
+  return o;
+}
+function unflat(o) {
+  const r = { hl: {}, notes: {}, bm: {}, plan: null, pos: o.pos || null }, done = {};
+  for (const k in o) {
+    const i = k.indexOf("|"); if (i < 0) continue;
+    const t = k.slice(0, i), id = k.slice(i + 1);
+    if (t === "h") r.hl[id] = o[k]; else if (t === "n") r.notes[id] = o[k]; else if (t === "b") r.bm[id] = o[k];
+    else if (t === "d" && o.p && k.startsWith("d|" + planTag(o.p))) done[k.slice(2 + planTag(o.p).length)] = 1;
+  }
+  if (o.p && PLANS[o.p.id]) r.plan = { id: o.p.id, start: o.p.start, done };
+  return r;
+}
+const js = (v) => JSON.stringify(v);
+const planTag = (p) => `${p.id}@${p.start}|`; // đoạn đã đọc gắn với từng lần bắt đầu kế hoạch
+function eq(a, b) { const ka = Object.keys(a); if (ka.length !== Object.keys(b).length) return false; for (const k of ka) if (!(k in b) || js(a[k]) !== js(b[k])) return false; return true; }
+// Ghi dấu thời gian cho các mục vừa đổi (gọi sau mỗi lần lưu).
+function stamp() {
+  const M = lsGet(MKEY) || { m: {}, prev: null }, cur = flat(S), now = Date.now(); let dirty = false;
+  if (M.prev) {
+    for (const k in cur) if (!(k in M.prev) || js(cur[k]) !== js(M.prev[k])) { M.m[k] = now; if (k !== "pos") dirty = true; }
+    for (const k in M.prev) if (!(k in cur)) { M.m[k] = now; if (k !== "pos") dirty = true; }
+  }
+  M.prev = cur; if (dirty) M.dirty = true; lsSet(MKEY, M);
+  if (dirty) schedSync();
+}
+function merge(L, Lm, remote) {
+  const R = (remote && remote.d) || {}, Rm = (remote && remote.m) || {}, d = {}, m = {}, now = Date.now();
+  for (const k of new Set([...Object.keys(L), ...Object.keys(R), ...Object.keys(Lm), ...Object.keys(Rm)])) {
+    const tl = Lm[k] || 0, tr = Rm[k] || 0;
+    if (tr > tl || (tr === tl && k in R)) { if (k in R) d[k] = R[k]; if (tr) m[k] = tr; } // bằng nhau: theo bản trên mây để mọi máy giống nhau
+    else { if (k in L) d[k] = L[k]; if (tl) m[k] = tl; }
+    if (!(k in d) && m[k] && now - m[k] > 180 * DAY) delete m[k]; // quên dấu xóa quá cũ
+  }
+  const tag = d.p ? "d|" + planTag(d.p) : null; // bỏ đoạn đã đọc của kế hoạch cũ
+  for (const k in d) if (k.startsWith("d|") && (!tag || !k.startsWith(tag))) { delete d[k]; m[k] = now; }
+  return { d, m, write: !remote || !eq(d, R) || !eq(m, Rm) ? { d, m, t: now } : null };
+}
+function applyData(d, m, dirty) {
+  const r = unflat(d);
+  Object.assign(S, r);
+  try { localStorage.setItem(KEY, js(S)); } catch (e) {}
+  lsSet(MKEY, { m, prev: flat(S), dirty: !!dirty, last: Date.now(), uid: user && user.uid });
+  refreshUI();
+}
+function refreshUI() {
+  const pg = document.body.dataset.page;
+  if (typeof CH !== "undefined" && CH) decorate();
+  if (pg === "saved") { renderSaved(); syncCard(); }
+  if (pg === "home") { contCard(); renderPlan(); }
+  if (pg === "book") initBook();
+}
+const loadFb = () => fbP || (fbP = import(`${BASE}assets/fb.js?v=${META.FBV}`).then((x) => (fb = x)).catch((e) => { fbP = null; throw e; }));
+function schedSync(ms = 2500) { if (!user) return; clearTimeout(syncT); syncT = setTimeout(() => runSync().catch(() => {}), ms); }
+function runSync() {
+  if (!user) return Promise.resolve();
+  if (syncing) return syncing;
+  syncing = (async () => {
+    try {
+      await loadFb(); if (!fb.current()) return;
+      setSync("busy");
+      S = loadS(); // đọc lại: tab khác có thể vừa lưu
+      const M = lsGet(MKEY) || { m: {} }, L = flat(S), Lm = M.m || {};
+      const res = await fb.sync((remote) => merge(L, Lm, remote));
+      const now = flat(loadS());
+      if (eq(now, L)) applyData(res.d, res.m, false);
+      else { S = loadS(); const M2 = lsGet(MKEY) || { m: {} }, again = merge(now, M2.m || {}, { d: res.d, m: res.m }); applyData(again.d, again.m, true); schedSync(500); }
+      syncErr = false; setSync("ok");
+    } catch (e) { console.warn("Đồng bộ lỗi", e); syncErr = true; setSync("err"); throw e; }
+    finally { syncing = null; }
+  })();
+  return syncing;
+}
+function syncDueOnLoad() { const M = lsGet(MKEY); return !M || M.dirty || !M.last || Date.now() - M.last > 6e4; }
+
+// ----- Giao diện tài khoản -----
+const GLOGO = `<svg class="glogo" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17z"/><path fill="#FBBC05" d="M10.6 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.5 2.3-6.2 0-11.5-4.2-13.4-9.9l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>`;
+const inAppUA = /Zalo|FBAN|FBAV|FB_IAB|Instagram|Messenger|Line\//i.test(navigator.userAgent);
+let acctMode = "in";
+const ERR = {
+  "auth/invalid-email": "Email chưa đúng. Kiểm tra lại giúp nhé.",
+  "auth/missing-password": "Hãy nhập mật khẩu.",
+  "auth/invalid-credential": "Email hoặc mật khẩu không đúng.",
+  "auth/wrong-password": "Mật khẩu không đúng.",
+  "auth/user-not-found": "Email hoặc mật khẩu không đúng.",
+  "auth/invalid-login-credentials": "Email hoặc mật khẩu không đúng.",
+  "auth/email-already-in-use": "Email này đã có tài khoản. Hãy đăng nhập, hoặc chọn Quên mật khẩu.",
+  "auth/weak-password": "Mật khẩu cần ít nhất 6 ký tự.",
+  "auth/too-many-requests": "Thử quá nhiều lần. Đợi vài phút rồi thử lại.",
+  "auth/network-request-failed": "Không kết nối được. Kiểm tra mạng rồi thử lại.",
+  "auth/popup-blocked": "Trình duyệt đã chặn cửa sổ đăng nhập Google. Cho phép cửa sổ bật lên rồi thử lại.",
+  "auth/user-disabled": "Tài khoản này đã bị khóa.",
+  "auth/requires-recent-login": "Vì bảo mật, hãy xác nhận lại rồi thử lần nữa.",
+  "auth/user-mismatch": "Tài khoản vừa chọn không phải tài khoản đang đăng nhập.",
+  "auth/account-exists-with-different-credential": "Email này đã đăng ký bằng cách khác. Hãy đăng nhập bằng email và mật khẩu.",
+};
+const errMsg = (e) => ERR[e && e.code] || "Có lỗi xảy ra. Thử lại sau.";
+const quiet = (e) => e && (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request");
+function acctButton() {
+  const b = $("#acctBtn"); if (!b) return;
+  if (user) { const ch = (user.name || user.email || "?").trim()[0].toUpperCase(); b.innerHTML = `<span class="av" aria-hidden="true">${esc(ch)}</span>`; b.classList.add("on"); b.title = b.ariaLabel = `Tài khoản: ${user.email || user.name}`; }
+  else { b.innerHTML = ic("user"); b.classList.remove("on"); b.title = b.ariaLabel = "Tài khoản"; }
+}
+function openAcct(mode) {
+  acctMode = mode || (user ? "me" : "in");
+  renderAcct(); $("#dAcct").showModal();
+  loadFb().then(() => { const g = $("#gBtn"); if (g) g.disabled = false; }).catch(() => { const e = $("#acctErr"); if (e) { e.textContent = "Không tải được phần đăng nhập. Kiểm tra mạng rồi mở lại."; e.hidden = false; } });
+}
+function setSync(state) {
+  const el = $("#syncState"); if (!el) return;
+  const M = lsGet(MKEY) || {};
+  el.textContent = state === "busy" ? "Đang đồng bộ…" : state === "err" ? "Chưa đồng bộ được. Kiểm tra mạng." : M.last ? `Đã đồng bộ lúc ${new Date(M.last).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : "Chưa đồng bộ";
+  el.dataset.state = state;
+}
+function renderAcct() {
+  const box = $("#acctBody"), title = $("#acctTitle"), back = $("#acctBack");
+  const mode = user ? (acctMode === "del" ? "del" : "me") : (["in", "up", "reset"].includes(acctMode) ? acctMode : "in");
+  back.hidden = !["up", "reset", "del"].includes(mode);
+  back.onclick = () => { acctMode = user ? "me" : "in"; renderAcct(); };
+  const priv = `<p class="small muted acct-foot">Xem <a href="${BASE}rieng-tu/">quyền riêng tư</a>: lưu gì và cách xóa.</p>`;
+  if (mode === "me") {
+    title.textContent = "Tài khoản";
+    const ch = esc((user.name || user.email || "?").trim()[0].toUpperCase());
+    box.innerHTML = `<div class="acct-me"><span class="av big" aria-hidden="true">${ch}</span><div><b>${esc(user.name || user.email)}</b>${user.name ? `<span class="small muted">${esc(user.email || "")}</span>` : ""}</div></div>
+      <div class="acct-sync"><span id="syncState"></span><button class="btn" id="syncNow">${ic("sync")}Đồng bộ ngay</button></div>
+      <p class="small muted">Tô màu, ghi chú, đánh dấu, kế hoạch đọc và chỗ đang đọc được lưu vào tài khoản. Cỡ chữ và giao diện vẫn riêng cho từng máy.</p>
+      <div class="acct-out"><button class="btn" id="logoutBtn">Đăng xuất</button><p class="small muted" id="logoutMsg">Đăng xuất sẽ xóa dữ liệu khỏi máy này. Dữ liệu vẫn còn trong tài khoản.</p></div>
+      <p class="acct-err" id="acctErr" role="alert" hidden></p>
+      <p class="small acct-foot"><button class="linkbtn danger" id="delLink">Xóa tài khoản</button></p>${priv}`;
+    setSync(syncing ? "busy" : syncErr ? "err" : "ok");
+    $("#syncNow").onclick = () => runSync().then(() => toast("Đã đồng bộ")).catch(() => {});
+    $("#delLink").onclick = () => { acctMode = "del"; renderAcct(); };
+    $("#logoutBtn").onclick = () => doLogout(false);
+    return;
+  }
+  if (mode === "del") {
+    title.textContent = "Xóa tài khoản";
+    const pw = fb && fb.providers().includes("password") && !fb.providers().includes("google.com");
+    box.innerHTML = `<p>Tài khoản <b>${esc(user.email || user.name)}</b> và mọi dữ liệu đã đồng bộ sẽ bị xóa vĩnh viễn, không khôi phục được.</p>
+      <p class="small muted">Tô màu và ghi chú trên máy này vẫn được giữ lại.</p>
+      <form id="delForm" novalidate>${pw ? `<label class="field"><span>Nhập mật khẩu để xác nhận</span><input type="password" id="delPass" autocomplete="current-password" required></label>` : `<p class="small muted">Bạn sẽ được hỏi chọn lại tài khoản Google để xác nhận.</p>`}
+      <p class="acct-err" id="acctErr" role="alert" hidden></p>
+      <div class="row"><button class="btn danger" type="submit" id="delYes">Xóa vĩnh viễn</button><button class="btn" type="button" id="delNo">Giữ tài khoản</button></div></form>`;
+    $("#delNo").onclick = () => { acctMode = "me"; renderAcct(); };
+    $("#delForm").onsubmit = async (e) => {
+      e.preventDefault(); const err = $("#acctErr"), btn = $("#delYes"); err.hidden = true;
+      const pass = pw ? $("#delPass").value : null;
+      if (pw && !pass) { err.textContent = "Hãy nhập mật khẩu."; err.hidden = false; return; }
+      btn.disabled = true;
+      try { await fb.deleteAccount(pass); clearTimeout(syncT); user = null; lsSet(UKEY, null); lsSet(MKEY, null); acctButton(); syncCard(); $("#dAcct").close(); toast("Đã xóa tài khoản"); }
+      catch (ex) { btn.disabled = false; if (!quiet(ex)) { err.textContent = errMsg(ex); err.hidden = false; } }
+    };
+    return;
+  }
+  // Chưa đăng nhập: đăng nhập / tạo tài khoản / quên mật khẩu
+  title.textContent = { in: "Đăng nhập", up: "Tạo tài khoản", reset: "Đặt lại mật khẩu" }[mode];
+  const lead = { in: "Đăng nhập để giữ tô màu, ghi chú, đánh dấu và kế hoạch đọc trên mọi thiết bị.", up: "Tạo tài khoản để giữ tô màu, ghi chú, đánh dấu và kế hoạch đọc trên mọi thiết bị. Những gì bạn đã lưu trên máy này sẽ được đưa vào tài khoản.", reset: "Nhập email đã đăng ký. Chúng tôi sẽ gửi một liên kết để bạn đặt mật khẩu mới." }[mode];
+  const g = mode === "reset" ? "" : `<button class="btn gbtn" id="gBtn" type="button"${fb ? "" : " disabled"}>${GLOGO}Tiếp tục với Google</button>
+    ${inAppUA ? `<p class="small muted acct-hint">Đăng nhập Google không chạy trong trình duyệt của Zalo hay Facebook. Hãy mở trang bằng Safari hoặc Chrome, hoặc dùng email bên dưới.</p>` : ""}
+    <div class="or"><span>hoặc dùng email</span></div>`;
+  box.innerHTML = `<p class="acct-lead">${lead}</p>${g}
+    <form id="acctForm" novalidate>
+      <label class="field"><span>Email</span><input type="email" id="aEmail" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required></label>
+      ${mode === "reset" ? "" : `<label class="field"><span>Mật khẩu${mode === "up" ? " <small class=\"muted\">(ít nhất 6 ký tự)</small>" : ""}</span><span class="pw"><input type="password" id="aPass" autocomplete="${mode === "up" ? "new-password" : "current-password"}" minlength="6" required><button class="linkbtn" type="button" id="pwShow" aria-pressed="false">Hiện</button></span></label>`}
+      <p class="acct-err" id="acctErr" role="alert" hidden></p>
+      <p class="acct-ok" id="acctOk" role="status" hidden></p>
+      <button class="btn primary wide" type="submit" id="acctSubmit">${{ in: "Đăng nhập", up: "Tạo tài khoản", reset: "Gửi liên kết" }[mode]}</button>
+    </form>
+    <div class="acct-links">${mode === "in" ? `<button class="linkbtn" data-mode="reset">Quên mật khẩu?</button><span>Chưa có tài khoản? <button class="linkbtn" data-mode="up">Tạo tài khoản</button></span>` : mode === "up" ? `<span>Đã có tài khoản? <button class="linkbtn" data-mode="in">Đăng nhập</button></span>` : `<button class="linkbtn" data-mode="in">Quay lại đăng nhập</button>`}</div>${priv}`;
+  const em = $("#aEmail"); em.value = renderAcct._email || ""; em.oninput = () => (renderAcct._email = em.value.trim());
+  $$("[data-mode]", box).forEach((x) => (x.onclick = () => { acctMode = x.dataset.mode; renderAcct(); setTimeout(() => $("#aEmail").focus(), 0); }));
+  const pws = $("#pwShow"); if (pws) pws.onclick = () => { const p = $("#aPass"), on = p.type === "password"; p.type = on ? "text" : "password"; pws.textContent = on ? "Ẩn" : "Hiện"; pws.setAttribute("aria-pressed", on); };
+  const err = $("#acctErr"), ok = $("#acctOk"), sub = $("#acctSubmit");
+  const fail = (e) => { if (quiet(e)) return; err.textContent = errMsg(e); err.hidden = false; };
+  const gb = $("#gBtn");
+  if (gb) gb.onclick = () => { err.hidden = true; if (!fb) return; fb.signInGoogle().then(signedIn).catch(fail); };
+  $("#acctForm").onsubmit = async (e) => {
+    e.preventDefault(); err.hidden = ok.hidden = true;
+    const email = em.value.trim(), pass = mode === "reset" ? "" : $("#aPass").value;
+    if (!/^\S+@\S+\.\S+$/.test(email)) return fail({ code: "auth/invalid-email" });
+    if (mode !== "reset" && !pass) return fail({ code: "auth/missing-password" });
+    if (mode === "up" && pass.length < 6) return fail({ code: "auth/weak-password" });
+    sub.disabled = true;
+    try {
+      await loadFb();
+      if (mode === "reset") { await fb.resetPassword(email); ok.textContent = `Nếu ${email} đã đăng ký, một email đặt lại mật khẩu sẽ đến trong vài phút. Xem cả hộp thư Spam.`; ok.hidden = false; }
+      else signedIn(await (mode === "up" ? fb.signUp(email, pass) : fb.signIn(email, pass)));
+    } catch (ex) { fail(ex); }
+    sub.disabled = false;
+  };
+}
+function setUser(u) {
+  user = u ? { uid: u.uid, email: u.email || "", name: u.displayName || "" } : null;
+  lsSet(UKEY, user); acctButton(); syncCard();
+}
+async function signedIn(cred) {
+  const u = cred && cred.user; if (!u) return;
+  const M = lsGet(MKEY);
+  if (M && M.uid && M.uid !== u.uid) lsSet(MKEY, { m: {}, prev: flat(S) }); // dữ liệu trên máy chưa thuộc tài khoản nào khác
+  setUser(u); acctMode = "me"; renderAcct();
+  try { await runSync(); toast("Đã đăng nhập và đồng bộ"); } catch (e) { toast("Đã đăng nhập. Sẽ đồng bộ khi có mạng."); }
+}
+async function doLogout(force) {
+  const btn = $("#logoutBtn"), msg = $("#logoutMsg"); if (btn) btn.disabled = true;
+  const M = lsGet(MKEY) || {};
+  if (M.dirty && !force) {
+    try { await runSync(); } catch (e) {
+      if (msg) msg.innerHTML = `Có thay đổi mới chưa đồng bộ được. Đăng xuất bây giờ sẽ mất chúng. <button class="linkbtn danger" id="logoutForce">Vẫn đăng xuất</button>`;
+      const f = $("#logoutForce"); if (f) f.onclick = () => doLogout(true);
+      if (btn) btn.disabled = false; return;
+    }
+  }
+  clearTimeout(syncT);
+  try { await loadFb(); await fb.logOut(); } catch (e) {}
+  Object.assign(S, { hl: {}, notes: {}, bm: {}, plan: null, pos: null });
+  try { localStorage.setItem(KEY, js(S)); } catch (e) {}
+  lsSet(MKEY, null); setUser(null); refreshUI();
+  $("#dAcct").close(); toast("Đã đăng xuất");
+}
+$("#acctBtn").onclick = () => openAcct();
+function initAccount() {
+  acctButton();
+  if (!user) return;
+  // Đã đăng nhập: tải phần đăng nhập khi trang rảnh, kiểm tra phiên rồi đồng bộ nếu cần.
+  const go = () => loadFb().then(() => {
+    let first = true;
+    fb.onUser((u) => {
+      if (u) { setUser(u); if (first && syncDueOnLoad()) runSync().catch(() => {}); }
+      else if (user) { setUser(null); lsSet(MKEY, null); }
+      first = false;
+    });
+  }).catch(() => {});
+  if ("requestIdleCallback" in window) requestIdleCallback(go, { timeout: 2500 }); else setTimeout(go, 800);
+  addEventListener("online", () => schedSync(1000));
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && syncDueOnLoad()) schedSync(300); });
+}
+
 /* ---------- Khởi động ---------- */
 const loadS = () => { try { return Object.assign({}, DEF, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) { return Object.assign({}, DEF); } };
 function boot() {
@@ -521,6 +785,7 @@ function boot() {
     saved: initSaved,
     shell: initShell,
   }[document.body.dataset.page] || (() => {}))();
+  initAccount();
 }
 // Trang được dựng sẵn (tải trước) chỉ chạy khi người dùng thật sự mở nó, và đọc lại dữ liệu mới nhất
 // để không ghi nhầm "đang đọc" hay đè mất màu tô vừa thêm ở trang trước.

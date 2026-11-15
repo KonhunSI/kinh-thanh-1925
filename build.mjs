@@ -39,7 +39,8 @@ const DATAV = crypto.createHash("sha1").update(JSON.stringify(DATA)).digest("hex
 // Ảnh nền câu gốc: src/vod-img/<khóa>.jpg (khóa: 01-01 … 12-31, 02-29, GOODFRI, EASTER, PENTECOST, TET1–3)
 const VOD_IMG_DIR = path.join(ROOT, "src/vod-img");
 const VODIMG = fs.existsSync(VOD_IMG_DIR) ? fs.readdirSync(VOD_IMG_DIR).filter((f) => /\.(jpe?g|webp)$/i.test(f)).sort() : [];
-const META = { BASE, NT, CHS, GROUPS, VOD_DAYS, VOD_SPECIAL, TET, VODIMG, BOOKS, SLUGS, DATAV };
+const FBV = crypto.createHash("sha1").update(fs.readFileSync(path.join(ROOT, "src/static/fb.js"))).digest("hex").slice(0, 8);
+const META = { BASE, NT, CHS, GROUPS, VOD_DAYS, VOD_SPECIAL, TET, VODIMG, BOOKS, SLUGS, DATAV, FBV };
 const js = fs.readFileSync(path.join(ROOT, "src/app.js"), "utf8").replace("/*@META@*/", `const META=${JSON.stringify(META)};`);
 const hash = (s) => crypto.createHash("sha1").update(s).digest("hex").slice(0, 8);
 const CSS_V = hash(css), JS_V = hash(js);
@@ -70,6 +71,8 @@ const SPRITE = `<svg width="0" height="0" style="position:absolute" aria-hidden=
 <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8L7 4Z"/></symbol>
 <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
 <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></symbol>
+<symbol id="i-sync" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20v-4h-4"/></symbol>
 <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
 </svg>`;
 const ic = (id, extra = "") => `<svg class="icon"${extra}><use href="#i-${id}"/></svg>`;
@@ -133,6 +136,7 @@ ${pick
   : `<a class="brand" href="${u()}"><span class="ribbon" aria-hidden="true"></span><span>Kinh Thánh <small>1925</small></span></a>
 <button class="ibtn" id="pickBtn" title="Chọn sách" aria-label="Chọn sách" aria-haspopup="dialog">${ic("book")}</button>`}
 <nav class="topnav" aria-label="Chính">${tabs.map(([k, href, icon, label]) => `<a href="${u(href)}" data-tab="${k}"${tab === k ? ' aria-current="page"' : ""}>${label}</a>`).join("")}</nav>
+<button class="ibtn acct-btn" id="acctBtn" title="Tài khoản" aria-label="Tài khoản" aria-haspopup="dialog">${ic("user")}</button>
 <button class="ibtn" id="aaBtn" title="Cỡ chữ và giao diện" aria-label="Cỡ chữ và giao diện" aria-haspopup="dialog">${ic("aa")}</button>
 </div></header>
 <main id="main" class="wrap${wide ? " wide" : ""}">
@@ -183,6 +187,10 @@ ${tabs.map(([k, href, icon, label]) => `<a href="${u(href)}" data-tab="${k}"${ta
     <div class="field"><span>Đọc khi không có mạng</span><div class="row"><button class="btn" id="offlineBtn">Tải toàn bộ Kinh Thánh (khoảng 5 MB)</button></div><span class="small muted" id="offlineMsg" style="font-weight:400"></span></div>
     <p class="small muted" style="margin:0">Văn bản: Kinh Thánh bản Truyền Thống 1925 (Tân Ước 1923, Cựu Ước 1925), thuộc phạm vi công cộng.</p>
   </div>
+</div></dialog>
+<dialog id="dAcct" closedby="any"><div class="dlg">
+  <div class="dlg-head"><button class="ibtn" id="acctBack" aria-label="Quay lại" hidden>${ic("left")}</button><h3 id="acctTitle">Tài khoản</h3><button class="ibtn" data-close aria-label="Đóng">${ic("x")}</button></div>
+  <div class="dlg-body acct" id="acctBody"></div>
 </div></dialog>
 <dialog id="dNote" closedby="any"><div class="dlg">
   <div class="dlg-head"><h3 id="noteTitle">Ghi chú</h3><button class="ibtn" data-close aria-label="Đóng">${ic("x")}</button></div>
@@ -338,8 +346,30 @@ write("da-luu/index.html", layout({
   body: `<h1 class="page">Đã lưu</h1>
 <div class="seg" role="group" aria-label="Loại đã lưu" id="savedSeg"><button data-k="hl" aria-pressed="true">Tô màu</button><button data-k="notes" aria-pressed="false">Ghi chú</button><button data-k="bm" aria-pressed="false">Đánh dấu</button></div>
 <ul class="saved-list" id="savedList"></ul>
-<div class="section"><p class="small muted" style="margin:0 0 8px">Tô màu, ghi chú và kế hoạch đọc được lưu trên trình duyệt này. Hãy sao lưu nếu đổi máy hoặc xóa dữ liệu trình duyệt.</p>
-<div class="row"><button class="btn" id="backupBtn">Sao lưu</button><label class="btn" for="restoreFile" style="cursor:pointer">Khôi phục</label><input id="restoreFile" type="file" accept="application/json,.json" class="sr"></div></div>`,
+<div class="section sync-card" id="syncCard"><p class="small muted" style="margin:0 0 8px" id="syncCardText">Tô màu, ghi chú và kế hoạch đọc đang lưu trên trình duyệt này. Đăng nhập để giữ chúng trên mọi thiết bị, hoặc tải bản sao lưu.</p>
+<div class="row"><button class="btn primary" id="syncCardBtn">${ic("user")}Đăng nhập</button><button class="btn" id="backupBtn">Sao lưu</button><label class="btn" for="restoreFile" style="cursor:pointer">Khôi phục</label><input id="restoreFile" type="file" accept="application/json,.json" class="sr"></div></div>`,
+}));
+urls.push("rieng-tu/");
+write("rieng-tu/index.html", layout({
+  title: "Quyền riêng tư – Kinh Thánh 1925", desc: "Kinh Thánh 1925 lưu những gì, ở đâu, và cách xóa dữ liệu của bạn.", canonical: "rieng-tu/", page: "privacy", tab: "",
+  body: `<article class="prose">
+<h1 class="page">Quyền riêng tư</h1>
+<p class="lead">Kinh Thánh 1925 chỉ lưu những gì cần để bạn đọc và giữ lại các câu mình đã đánh dấu. Không quảng cáo, không theo dõi, không bán dữ liệu.</p>
+<h2>Khi không đăng nhập</h2>
+<p>Tô màu, ghi chú, đánh dấu, kế hoạch đọc, chỗ đang đọc và cỡ chữ được lưu ngay trên trình duyệt của bạn. Chúng tôi không nhận được những dữ liệu này. Xóa dữ liệu trình duyệt sẽ xóa chúng, nên hãy dùng nút Sao lưu ở trang Đã lưu nếu cần.</p>
+<h2>Khi đăng nhập</h2>
+<p>Đăng nhập giúp giữ dữ liệu của bạn trên nhiều thiết bị. Khi đó trang lưu:</p>
+<ul>
+<li>Thông tin tài khoản: email, và tên cùng ảnh đại diện nếu bạn đăng nhập bằng Google.</li>
+<li>Dữ liệu đọc: các câu đã tô màu, ghi chú, đánh dấu, kế hoạch đọc và chỗ đang đọc.</li>
+</ul>
+<p>Cỡ chữ và giao diện vẫn chỉ lưu trên từng máy. Dữ liệu được lưu bằng dịch vụ Firebase của Google, đặt tại Singapore. Chỉ chính bạn, sau khi đăng nhập, mới đọc và sửa được dữ liệu của mình.</p>
+<h2>Xóa dữ liệu</h2>
+<p>Mở Tài khoản (biểu tượng hình người ở đầu trang), chọn Xóa tài khoản. Tài khoản và mọi dữ liệu đã đồng bộ sẽ bị xóa vĩnh viễn. Khi đăng xuất, dữ liệu được xóa khỏi máy đang dùng nhưng vẫn còn trong tài khoản.</p>
+<h2>Những thứ khác</h2>
+<p>Phông chữ được tải từ Google Fonts. Trang có thể lưu sẵn văn bản Kinh Thánh trên máy để đọc khi không có mạng. Đọc to dùng giọng đọc có sẵn trên thiết bị của bạn.</p>
+<p class="small muted">Cập nhật ngày 15 tháng 11 năm 2026.</p>
+</article>`,
 }));
 // Trang khung: service worker trả trang này khi mất mạng; app.js tự vẽ đoạn từ dữ liệu đã tải.
 write("doc/index.html", layout({
