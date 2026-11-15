@@ -132,11 +132,11 @@ ${head}
 <a class="skip" href="#main">Bỏ qua, đến nội dung</a>
 ${SPRITE}
 <header class="top"><div class="wrap wide">
-${pick ? `<a class="brand desk" href="${u()}"><span class="ribbon" aria-hidden="true"></span><span>Kinh Thánh <small>1925</small></span></a>` : ""}
+${pick ? `<a class="brand desk" href="${u()}"><img class="brand-mark" src="${u("assets/logo-mark.svg")}" width="19" height="28" alt=""><span>Kinh Thánh <small>1925</small></span></a>` : ""}
 ${pick
   ? `<button class="pick" id="pickBtn" aria-haspopup="dialog"><span>${esc(pick)}</span>${ic("down", ' style="width:16px;height:16px"')}</button>
 <button class="ibtn" id="listenBtn" title="Nghe đọc đoạn này" aria-label="Nghe đọc đoạn này" aria-pressed="false">${ic("head")}</button>`
-  : `<a class="brand" href="${u()}"><span class="ribbon" aria-hidden="true"></span><span>Kinh Thánh <small>1925</small></span></a>
+  : `<a class="brand" href="${u()}"><img class="brand-mark" src="${u("assets/logo-mark.svg")}" width="19" height="28" alt=""><span>Kinh Thánh <small>1925</small></span></a>
 <button class="ibtn" id="pickBtn" title="Chọn sách" aria-label="Chọn sách" aria-haspopup="dialog">${ic("book")}</button>`}
 <nav class="topnav" aria-label="Chính">${tabs.map(([k, href, icon, label]) => `<a href="${u(href)}" data-tab="${k}"${tab === k ? ' aria-current="page"' : ""}>${label}</a>`).join("")}</nav>
 <button class="ibtn acct-btn" id="acctBtn" title="Tài khoản" aria-label="Tài khoản" aria-haspopup="dialog">${ic("user")}</button>

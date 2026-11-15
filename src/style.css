@@ -41,7 +41,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .top .wrap{display:flex;align-items:center;gap:6px;height:56px}
 .brand{font-family:var(--f-text);font-size-adjust:.507;font-weight:600;font-size:17px;display:flex;align-items:center;gap:8px;margin-right:auto;text-decoration:none;min-width:0}
 .brand small{font-family:var(--f-ui);font-weight:500;font-size:11px;letter-spacing:.08em;color:var(--muted)}
-.ribbon{width:10px;height:22px;background:var(--accent);clip-path:polygon(0 0,100% 0,100% 100%,50% 78%,0 100%);flex:none}
+.brand-mark{width:19px;height:28px;flex:none;display:block}
 .pick{margin-right:auto;display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-weight:600;min-width:0;max-width:62vw}
 .pick span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ibtn{width:40px;height:40px;display:grid;place-items:center;border-radius:10px;color:var(--fg);text-decoration:none}
