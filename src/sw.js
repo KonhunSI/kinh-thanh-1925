@@ -36,6 +36,7 @@ self.addEventListener("fetch", (e) => {
     return;
   }
   if (url.origin !== location.origin) return;
+  if (url.pathname.startsWith("/__/")) return; // trang đăng nhập Firebase: luôn lấy từ mạng
 
   if (url.pathname.startsWith(BASE + "data/")) {
     e.respondWith(cacheFirst(req, DATA_CACHE));

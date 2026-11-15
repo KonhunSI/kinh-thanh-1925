@@ -48,6 +48,9 @@ const VERSION = hash(css + js + TOTAL_V + BASE + DATAV);
 write("assets/style.css", css);
 write("assets/app.js", js);
 for (const f of fs.readdirSync(path.join(ROOT, "src/static"))) fs.copyFileSync(path.join(ROOT, "src/static", f), path.join(OUT, "assets", f));
+// Trang đăng nhập Firebase đặt trên chính tên miền (authDomain = kinhthanh1925.com), xem src/auth-helper/README.md
+for (const [src, dst] of [["handler.html", "__/auth/handler/index.html"], ["iframe.html", "__/auth/iframe/index.html"], ["handler.js", "__/auth/handler.js"], ["experiments.js", "__/auth/experiments.js"], ["iframe.js", "__/auth/iframe.js"]])
+  write(dst, fs.readFileSync(path.join(ROOT, "src/auth-helper", src)));
 for (const f of VODIMG) { fs.mkdirSync(path.join(OUT, "assets/vod"), { recursive: true }); fs.copyFileSync(path.join(VOD_IMG_DIR, f), path.join(OUT, "assets/vod", f)); }
 for (let i = 0; i < 66; i++) write(`data/b${String(i + 1).padStart(2, "0")}.json`, JSON.stringify(DATA[i]));
 

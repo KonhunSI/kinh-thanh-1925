@@ -11,7 +11,7 @@ import { getFirestore, doc, runTransaction, deleteDoc } from "firebase/firestore
 
 const app = initializeApp({
   apiKey: "AIzaSyCHwPKtH6tO924Wq1-5TobpzHqqmFGAn80",
-  authDomain: "kinhthanh1925.firebaseapp.com",
+  authDomain: "kinhthanh1925.com", // trang đăng nhập tự đặt ở /__/auth/ (src/auth-helper)
   projectId: "kinhthanh1925",
   storageBucket: "kinhthanh1925.firebasestorage.app",
   messagingSenderId: "556850553547",
