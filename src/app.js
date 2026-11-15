@@ -25,7 +25,7 @@ const chUrl = (b, c, v) => `${BASE}${SLUGS[b]}/${c}/${v ? "#v" + v : ""}`;
 const bookUrl = (b) => `${BASE}${SLUGS[b]}/`;
 const ic = (id) => `<svg class="icon"><use href="#i-${id}"/></svg>`;
 function fold(s) { let o = ""; for (const ch of s) { if (ch === "Đ" || ch === "đ") { o += "d"; continue; } o += ch.normalize("NFD")[0].toLowerCase(); } return o; }
-function toast(msg) { const t = $("#toast"); if (!t) return; t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), 2600); }
+function toast(msg) { const t = $("#toast"); if (!t) return; t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), msg.length > 60 ? 6000 : 2600); }
 function todayStr(d = new Date()) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
 function daysBetween(a, b) { return Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 864e5); }
 async function copyText(t) {
@@ -387,6 +387,15 @@ $("#imgSave").onclick = () => { if (lastBlob) downloadBlob(lastBlob, lastName); 
 /* ---------- Nghe đọc (giọng đọc của máy) ---------- */
 let audio = null;
 $("#pRate").value = String(S.rate);
+// Trình duyệt không có giọng đọc: nói rõ nên mở bằng trình duyệt nào.
+function noTtsMsg() {
+  const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (/Mac/.test(ua) && "ontouchend" in document);
+  if (/Zalo/i.test(ua)) return "Trình duyệt trong Zalo chưa hỗ trợ đọc to. Bấm ⋯ rồi chọn mở bằng " + (ios ? "Safari" : "Chrome") + " để nghe.";
+  if (/FBAN|FBAV|FB_IAB|Instagram|Messenger/i.test(ua)) return "Trình duyệt trong Facebook chưa hỗ trợ đọc to. Bấm ⋯ rồi chọn mở bằng " + (ios ? "Safari" : "Chrome") + " để nghe.";
+  if (ios && /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua)) return "Trình duyệt này trên iPhone chưa hỗ trợ đọc to. Hãy mở kinhthanh1925.com bằng Safari để nghe.";
+  if (ios) return "Trình duyệt này chưa hỗ trợ đọc to. Hãy mở kinhthanh1925.com bằng Safari để nghe.";
+  return "Trình duyệt này chưa hỗ trợ đọc to. Hãy dùng Chrome, Edge hoặc Safari bản mới.";
+}
 // Giọng đọc lấy từ máy người dùng (iPhone, Android, Windows, Mac mỗi máy một khác). Người dùng chọn giọng trong Tuỳ chọn đọc.
 const voicesFor = (en) => { if (!("speechSynthesis" in window)) return []; const re = en ? /^en/i : /^vi/i; return speechSynthesis.getVoices().filter((v) => re.test(v.lang)); };
 const voiceRank = (v) => (/natural|neural|premium|enhanced|nâng cao|cao cấp/i.test(v.name) ? 0 : 2) + (/^en-(US|GB)/i.test(v.lang) || /^vi/i.test(v.lang) ? 0 : 1);
@@ -406,7 +415,7 @@ function renderVoices() {
   const more = ios ? "Trên iPhone, vào Cài đặt › Trợ năng › Nội dung được đọc › Giọng nói › Tiếng Việt để tải thêm giọng (chọn bản Nâng cao cho rõ hơn)."
     : android ? "Trên Android, vào Cài đặt › Chuyển văn bản thành giọng nói › Công cụ của Google › Cài đặt › Cài đặt dữ liệu giọng nói › Tiếng Việt để tải thêm giọng."
     : /Edg\//.test(ua) ? "" : "Trình duyệt Microsoft Edge có sẵn giọng tiếng Việt tự nhiên (nam và nữ).";
-  $("#voiceNote").textContent = !("speechSynthesis" in window) ? "Trình duyệt này chưa hỗ trợ đọc to."
+  $("#voiceNote").textContent = !("speechSynthesis" in window) ? noTtsMsg()
     : !list.length ? (en ? "Máy chưa có giọng tiếng Anh." : "Máy chưa có giọng tiếng Việt. " + more)
     : list.length === 1 ? `Máy này có 1 giọng. ${more}` : `Máy này có ${list.length} giọng.${list.length < 3 ? " " + more : ""}`;
 }
@@ -436,7 +445,7 @@ function syncPlayer() {
 }
 function startAudio(from = 1) {
   if (!CH) return; stopAudio();
-  if (!("speechSynthesis" in window)) { toast("Trình duyệt này chưa hỗ trợ đọc to."); return; }
+  if (!("speechSynthesis" in window)) { toast(noTtsMsg()); return; }
   const enMode = S.lang === "en" && CH.en;
   const voice = enMode ? enVoice() : viVoice(); if (!voice && !enMode) toast("Máy chưa có giọng tiếng Việt, âm đọc có thể không chuẩn.");
   const { b, c } = CH, verses = enMode ? CH.en : CH.verses; audio = { b, c, n: verses.length, cur: from, paused: false }; syncPlayer();
