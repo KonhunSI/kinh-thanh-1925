@@ -89,32 +89,40 @@ const bookKeys = BOOKS.map(([n, a]) => {
   const roman = (s) => s.replace(/^III\s/, "3").replace(/^II\s/, "2").replace(/^I\s/, "1");
   return [fold(roman(n)).replace(/[\s-]/g, ""), fold(a).replace(/[\s-]/g, "")];
 });
-let pickTab = "ot";
 function curBook() { const b = document.body.dataset.b; return b != null ? +b : S.pos ? S.pos.b : -1; }
-const chips = (list, cb) => list.map((i) => `<li><button data-b="${i}"${i === cb ? ' class="cur" aria-current="true"' : ""}>${esc(BOOKS[i][0])}<small>${CHS[i]}</small></button></li>`).join("");
+// Màn hình rộng ở trang đoạn đã có cột bên phải liệt kê các đoạn: chọn sách là mở luôn đoạn 1.
+const sideChapters = () => document.body.dataset.page === "chapter" && matchMedia("(min-width:1024px)").matches;
+const bookRows = (list, cb) => list.map((i) => `<li><button data-b="${i}"${i === cb ? ' class="cur" aria-current="true"' : ""}><span>${esc(BOOKS[i][0])}</span><small>${CHS[i]} đoạn</small></button></li>`).join("");
 function renderBooks(filter = "") {
   $("#pickTitle").textContent = "Chọn sách"; $("#pickBack").hidden = true;
-  const f = fold(filter).replace(/[\s-]/g, "");
-  const list = BOOKS.map((_, i) => i).filter((i) => (f ? bookKeys[i].some((k) => k.includes(f)) : pickTab === "ot" ? i < NT : i >= NT));
-  const cb = curBook();
-  $("#pickBody").innerHTML = `<label class="sr" for="bf">Lọc tên sách</label><input class="filter" id="bf" placeholder="Gõ tên sách…" value="${esc(filter)}">
-   ${f ? "" : `<div class="seg" style="margin-top:12px"><button data-t="ot" aria-pressed="${pickTab === "ot"}">Cựu Ước · 39</button><button data-t="nt" aria-pressed="${pickTab === "nt"}">Tân Ước · 27</button></div>`}
-   ${f ? `<ul class="bk" style="margin-top:12px">${chips(list, cb) || `<li class="muted">Không thấy sách nào.</li>`}</ul>`
-       : GROUPS.filter(([, a]) => (pickTab === "ot" ? a < NT : a >= NT)).map(([g, a, z]) => `<div class="grp"><h4 class="grp-name">${esc(g)}</h4><ul class="bk">${chips(Array.from({ length: z - a + 1 }, (_, j) => a + j), cb)}</ul></div>`).join("")}`;
+  const f = fold(filter).replace(/[\s-]/g, ""), cb = curBook();
+  let list;
+  if (f) {
+    const hits = BOOKS.map((_, i) => i).filter((i) => bookKeys[i].some((k) => k.includes(f)));
+    list = hits.length ? `<ul class="blist">${bookRows(hits, cb)}</ul>` : `<p class="muted small" style="margin:16px 4px">Không thấy sách nào.</p>`;
+  } else {
+    list = [["Cựu Ước", 0, NT], ["Tân Ước", NT, 66]].map(([tm, a0, z0]) => `<h4 class="blist-tm">${tm}</h4>` +
+      GROUPS.filter(([, a]) => a >= a0 && a < z0).map(([g, a, z]) => `<div class="blist-grp">${esc(g)}</div><ul class="blist">${bookRows(Array.from({ length: z - a + 1 }, (_, j) => a + j), cb)}</ul>`).join("")).join("");
+  }
+  $("#pickBody").innerHTML = `<div class="pick-filter"><label class="sr" for="bf">Lọc tên sách</label><input class="filter" id="bf" placeholder="Gõ tên sách…" value="${esc(filter)}" autocomplete="off"></div>${list}`;
   const bf = $("#bf");
   bf.oninput = () => { const p = bf.selectionStart; renderBooks(bf.value); const n = $("#bf"); n.focus(); n.setSelectionRange(p, p); };
-  $$("#pickBody [data-t]").forEach((x) => (x.onclick = () => { pickTab = x.dataset.t; renderBooks(); }));
-  $$("#pickBody [data-b]").forEach((x) => (x.onclick = () => { const b = +x.dataset.b; if (CHS[b] === 1) location.href = chUrl(b, 1); else renderChapters(b); }));
+  $$("#pickBody [data-b]").forEach((x) => (x.onclick = () => { const b = +x.dataset.b; if (CHS[b] === 1 || sideChapters()) location.href = chUrl(b, 1); else renderChapters(b); }));
+  if (!f) { const c = $("#pickBody .cur"); if (c) c.scrollIntoView({ block: "center" }); else $("#pickBody").scrollTop = 0; }
 }
 function renderChapters(b) {
   $("#pickTitle").textContent = BOOKS[b][0]; $("#pickBack").hidden = false;
   const cur = document.body.dataset.page === "chapter" || document.body.dataset.page === "shell" ? S.pos : null;
   let h = `<ul class="chs">`;
   for (let c = 1; c <= CHS[b]; c++) h += `<li><a href="${chUrl(b, c)}" class="${cur && cur.b === b && cur.c === c ? "cur" : ""}">${c}</a></li>`;
-  $("#pickBody").innerHTML = h + `</ul>`;
+  $("#pickBody").innerHTML = h + `</ul>`; $("#pickBody").scrollTop = 0;
 }
 $("#pickBack").onclick = () => renderBooks();
-$("#pickBtn").onclick = () => { const cb = curBook(); pickTab = cb >= NT ? "nt" : "ot"; if (document.body.dataset.page === "chapter" && cb >= 0) renderChapters(cb); else renderBooks(); $("#dPick").showModal(); };
+$("#pickBtn").onclick = () => {
+  const cb = curBook();
+  $("#dPick").showModal();
+  if (document.body.dataset.page === "chapter" && cb >= 0 && !sideChapters()) renderChapters(cb); else renderBooks();
+};
 function findBook(q) {
   const f = fold(q).replace(/[\s.-]/g, ""); if (f.length < 2) return -1;
   let i = bookKeys.findIndex((k) => k[1] === f); if (i >= 0) return i;

@@ -351,3 +351,16 @@ textarea{width:100%;min-height:9rem;border-radius:10px;border:1px solid var(--li
 .acct-stat span{font-size:13px;color:var(--muted)}
 .acct-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .acct-del{color:var(--muted);font-weight:500}.acct-del:hover{color:var(--danger)}
+/* chọn sách: danh sách dọc, cuộn được */
+#dPick{width:min(30rem,calc(100% - 24px))}
+#dPick .dlg{height:min(86vh,46rem)}
+#dPick .dlg-body{flex:1;padding-top:0}
+.pick-filter{position:sticky;top:0;z-index:1;background:var(--surface);margin:0 -16px;padding:14px 16px 8px}
+.blist-tm{font-family:var(--f-text);font-size-adjust:.507;font-size:19px;font-weight:500;margin:16px 4px 0}
+.blist-grp{font-size:12.5px;font-weight:600;color:var(--muted);margin:12px 4px 2px}
+.blist{list-style:none;margin:0;padding:0}
+.blist button{display:flex;align-items:baseline;justify-content:space-between;gap:12px;width:100%;padding:10px;border-radius:10px;text-align:left;font-size:15px;font-weight:500;scroll-margin:64px}
+.blist button:hover{background:var(--sunk)}
+.blist small{font-size:12.5px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.blist .cur{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.blist .cur small{color:var(--accent)}
