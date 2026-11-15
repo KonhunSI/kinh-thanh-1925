@@ -342,3 +342,12 @@ textarea{width:100%;min-height:9rem;border-radius:10px;border:1px solid var(--li
 .prose p,.prose li{font-size:16px;line-height:1.65;text-wrap:pretty}
 .prose ul{padding-left:1.2em}
 .prose .lead{margin-bottom:8px}
+.acct-me #syncState{color:var(--muted);margin-top:2px}
+.acct-me #syncState[data-state="err"]{color:var(--danger)}
+.acct-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.acct-stat{display:grid;gap:2px;padding:12px;border-radius:12px;background:var(--sunk);text-decoration:none;text-align:center}
+.acct-stat:hover{background:var(--accent-soft)}
+.acct-stat b{font-size:22px;font-weight:600;line-height:1.1}
+.acct-stat span{font-size:13px;color:var(--muted)}
+.acct-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.acct-del{color:var(--muted);font-weight:500}.acct-del:hover{color:var(--danger)}

@@ -466,6 +466,8 @@ async function doSearch() {
 /* ---------- Đã lưu ---------- */
 let savedKind = "hl";
 function initSaved() {
+  const qk = new URLSearchParams(location.search).get("k");
+  if (["hl", "notes", "bm"].includes(qk)) { savedKind = qk; $$("#savedSeg button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.k === qk)); }
   $$("#savedSeg button").forEach((b) => (b.onclick = () => { savedKind = b.dataset.k; $$("#savedSeg button").forEach((x) => x.setAttribute("aria-pressed", x === b)); renderSaved(); }));
   $("#backupBtn").onclick = () => {
     const data = JSON.stringify({ app: "kinhthanh1925", v: 1, at: new Date().toISOString(), hl: S.hl, notes: S.notes, bm: S.bm, plan: S.plan }, null, 1);
@@ -587,6 +589,7 @@ function refreshUI() {
   if (pg === "saved") { renderSaved(); syncCard(); }
   if (pg === "home") { contCard(); renderPlan(); }
   if (pg === "book") initBook();
+  if ($("#dAcct").open && user && acctMode === "me") renderAcct();
 }
 const loadFb = () => fbP || (fbP = import(`${BASE}assets/fb.js?v=${META.FBV}`).then((x) => (fb = x)).catch((e) => { fbP = null; throw e; }));
 function schedSync(ms = 2500) { if (!user) return; clearTimeout(syncT); syncT = setTimeout(() => runSync().catch(() => {}), ms); }
@@ -642,13 +645,15 @@ function acctButton() {
 function openAcct(mode) {
   acctMode = mode || (user ? "me" : "in");
   renderAcct(); $("#dAcct").showModal();
+  if (user && syncDueOnLoad()) runSync().catch(() => {});
   loadFb().then(() => { const g = $("#gBtn"); if (g) g.disabled = false; }).catch(() => { const e = $("#acctErr"); if (e) { e.textContent = "Không tải được phần đăng nhập. Kiểm tra mạng rồi mở lại."; e.hidden = false; } });
 }
 function setSync(state) {
   const el = $("#syncState"); if (!el) return;
   const M = lsGet(MKEY) || {};
-  el.textContent = state === "busy" ? "Đang đồng bộ…" : state === "err" ? "Chưa đồng bộ được. Kiểm tra mạng." : M.last ? `Đã đồng bộ lúc ${new Date(M.last).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : "Chưa đồng bộ";
   el.dataset.state = state;
+  if (state === "err") { el.innerHTML = `Chưa đồng bộ được. <button class="linkbtn" id="syncRetry">Thử lại</button>`; $("#syncRetry").onclick = () => runSync().catch(() => {}); return; }
+  el.textContent = state === "busy" ? "Đang đồng bộ…" : M.last ? `Đã đồng bộ lúc ${new Date(M.last).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : "";
 }
 function renderAcct() {
   const box = $("#acctBody"), title = $("#acctTitle"), back = $("#acctBack");
@@ -659,14 +664,13 @@ function renderAcct() {
   if (mode === "me") {
     title.textContent = "Tài khoản";
     const ch = esc((user.name || user.email || "?").trim()[0].toUpperCase());
-    box.innerHTML = `<div class="acct-me"><span class="av big" aria-hidden="true">${ch}</span><div><b>${esc(user.name || user.email)}</b>${user.name ? `<span class="small muted">${esc(user.email || "")}</span>` : ""}</div></div>
-      <div class="acct-sync"><span id="syncState"></span><button class="btn" id="syncNow">${ic("sync")}Đồng bộ ngay</button></div>
-      <p class="small muted">Tô màu, ghi chú, đánh dấu, kế hoạch đọc và chỗ đang đọc được lưu vào tài khoản. Cỡ chữ và giao diện vẫn riêng cho từng máy.</p>
-      <div class="acct-out"><button class="btn" id="logoutBtn">Đăng xuất</button><p class="small muted" id="logoutMsg">Đăng xuất sẽ xóa dữ liệu khỏi máy này. Dữ liệu vẫn còn trong tài khoản.</p></div>
-      <p class="acct-err" id="acctErr" role="alert" hidden></p>
-      <p class="small acct-foot"><button class="linkbtn danger" id="delLink">Xóa tài khoản</button></p>${priv}`;
+    const n = (o) => Object.keys(o || {}).length;
+    const stat = (k, num, label) => `<a class="acct-stat" href="${BASE}da-luu/?k=${k}"><b>${num}</b><span>${label}</span></a>`;
+    box.innerHTML = `<div class="acct-me"><span class="av big" aria-hidden="true">${ch}</span><div><b>${esc(user.name || user.email)}</b>${user.name ? `<span class="small muted">${esc(user.email || "")}</span>` : ""}<span class="small" id="syncState"></span></div></div>
+      <div class="acct-stats">${stat("hl", n(S.hl), "Tô màu")}${stat("notes", n(S.notes), "Ghi chú")}${stat("bm", n(S.bm), "Đánh dấu")}</div>
+      <p class="small muted acct-out-msg" id="logoutMsg" hidden></p>
+      <div class="acct-actions"><button class="btn" id="logoutBtn">Đăng xuất</button><button class="linkbtn small acct-del" id="delLink">Xóa tài khoản</button></div>`;
     setSync(syncing ? "busy" : syncErr ? "err" : "ok");
-    $("#syncNow").onclick = () => runSync().then(() => toast("Đã đồng bộ")).catch(() => {});
     $("#delLink").onclick = () => { acctMode = "del"; renderAcct(); };
     $("#logoutBtn").onclick = () => doLogout(false);
     return;
@@ -743,6 +747,7 @@ async function doLogout(force) {
   const M = lsGet(MKEY) || {};
   if (M.dirty && !force) {
     try { await runSync(); } catch (e) {
+      if (msg) msg.hidden = false;
       if (msg) msg.innerHTML = `Có thay đổi mới chưa đồng bộ được. Đăng xuất bây giờ sẽ mất chúng. <button class="linkbtn danger" id="logoutForce">Vẫn đăng xuất</button>`;
       const f = $("#logoutForce"); if (f) f.onclick = () => doLogout(true);
       if (btn) btn.disabled = false; return;
@@ -753,7 +758,7 @@ async function doLogout(force) {
   Object.assign(S, { hl: {}, notes: {}, bm: {}, plan: null, pos: null });
   try { localStorage.setItem(KEY, js(S)); } catch (e) {}
   lsSet(MKEY, null); setUser(null); refreshUI();
-  $("#dAcct").close(); toast("Đã đăng xuất");
+  $("#dAcct").close(); toast("Đã đăng xuất. Dữ liệu vẫn còn trong tài khoản.");
 }
 $("#acctBtn").onclick = () => openAcct();
 function initAccount() {
