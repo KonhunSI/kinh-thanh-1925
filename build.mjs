@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { BOOKS, NT, SLUGS, INTRO, GROUPS, groupOf, fold } from "./src/books.mjs";
+import { BOOKS, NT, SLUGS, INTRO, GROUPS, groupOf, fold, EN_BOOKS } from "./src/books.mjs";
 import { VOD_DAYS, VOD_SPECIAL, TET } from "./src/vod.mjs";
 
 const ROOT = path.dirname(new URL(import.meta.url).pathname);
@@ -40,7 +40,7 @@ const DATAV = crypto.createHash("sha1").update(JSON.stringify(DATA)).digest("hex
 const VOD_IMG_DIR = path.join(ROOT, "src/vod-img");
 const VODIMG = fs.existsSync(VOD_IMG_DIR) ? fs.readdirSync(VOD_IMG_DIR).filter((f) => /\.(jpe?g|webp)$/i.test(f)).sort() : [];
 const FBV = crypto.createHash("sha1").update(fs.readFileSync(path.join(ROOT, "src/static/fb.js"))).digest("hex").slice(0, 8);
-const META = { BASE, NT, CHS, GROUPS, VOD_DAYS, VOD_SPECIAL, TET, VODIMG, BOOKS, SLUGS, DATAV, FBV };
+const META = { BASE, NT, CHS, GROUPS, VOD_DAYS, VOD_SPECIAL, TET, VODIMG, BOOKS, SLUGS, DATAV, FBV, EN_BOOKS };
 const js = fs.readFileSync(path.join(ROOT, "src/app.js"), "utf8").replace("/*@META@*/", `const META=${JSON.stringify(META)};`);
 const hash = (s) => crypto.createHash("sha1").update(s).digest("hex").slice(0, 8);
 const CSS_V = hash(css), JS_V = hash(js);
@@ -53,6 +53,8 @@ for (const [src, dst] of [["handler.html", "__/auth/handler/index.html"], ["ifra
   write(dst, fs.readFileSync(path.join(ROOT, "src/auth-helper", src)));
 for (const f of VODIMG) { fs.mkdirSync(path.join(OUT, "assets/vod"), { recursive: true }); fs.copyFileSync(path.join(VOD_IMG_DIR, f), path.join(OUT, "assets/vod", f)); }
 for (let i = 0; i < 66; i++) write(`data/b${String(i + 1).padStart(2, "0")}.json`, JSON.stringify(DATA[i]));
+// Bản tiếng Anh (phạm vi công cộng), đã khớp số câu với bản 1925: data/kjv, data/web
+for (const tr of ["kjv", "web"]) for (let i = 0; i < 66; i++) { const f = `data/${tr}/b${String(i + 1).padStart(2, "0")}.json`; write(f, fs.readFileSync(path.join(ROOT, f))); }
 
 const SPRITE = `<svg width="0" height="0" style="position:absolute" aria-hidden="true">
 <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
@@ -92,7 +94,7 @@ const SPEC_RULES = `<script type="speculationrules">${JSON.stringify({
 const VT_SCRIPT = `<script>addEventListener("pagereveal",function(e){var t=e.viewTransition,a=window.navigation&&navigation.activation;if(!t||!a||!a.from)return;var f=a.from.url,p=document.querySelector("a[rel~=prev]"),n=document.querySelector("a[rel~=next]");t.types.add(p&&f===p.href?"next":n&&f===n.href?"prev":"fade")})</script>`;
 
 // Áp dụng cỡ chữ / giao diện trước khi vẽ trang để không bị chớp.
-const PREF_SCRIPT = `<script>try{var p=JSON.parse(localStorage.getItem("kt1925")||"{}"),d=document.documentElement;if(p.theme&&p.theme!=="auto")d.setAttribute("data-theme",p.theme);if(p.size)d.style.setProperty("--read-size",p.size+"px");if(p.fam==="sans")d.classList.add("sans");if(p.lay==="lines")d.classList.add("lines")}catch(e){}</script>`;
+const PREF_SCRIPT = `<script>try{var p=JSON.parse(localStorage.getItem("kt1925")||"{}"),d=document.documentElement;if(p.theme&&p.theme!=="auto")d.setAttribute("data-theme",p.theme);if(p.size)d.style.setProperty("--read-size",p.size+"px");if(p.fam==="sans")d.classList.add("sans");if(p.lay==="lines")d.classList.add("lines");if(p.lang==="bi"||p.lang==="en")d.classList.add("lang-"+p.lang)}catch(e){}</script>`;
 
 function layout({ title, desc, canonical, page, tab, body, head = "", noindex = false, pick = null, data = {}, wide = false }) {
   const dataAttrs = Object.entries(data).map(([k, v]) => ` data-${k}="${esc(v)}"`).join("");
@@ -140,7 +142,7 @@ ${pick
 <button class="ibtn" id="pickBtn" title="Chọn sách" aria-label="Chọn sách" aria-haspopup="dialog">${ic("book")}</button>`}
 <nav class="topnav" aria-label="Chính">${tabs.map(([k, href, icon, label]) => `<a href="${u(href)}" data-tab="${k}"${tab === k ? ' aria-current="page"' : ""}>${label}</a>`).join("")}</nav>
 <button class="ibtn acct-btn" id="acctBtn" title="Tài khoản" aria-label="Tài khoản" aria-haspopup="dialog">${ic("user")}</button>
-<button class="ibtn" id="aaBtn" title="Cỡ chữ và giao diện" aria-label="Cỡ chữ và giao diện" aria-haspopup="dialog">${ic("aa")}</button>
+<button class="ibtn" id="aaBtn" title="Cỡ chữ, ngôn ngữ và giao diện" aria-label="Cỡ chữ, ngôn ngữ và giao diện" aria-haspopup="dialog">${ic("aa")}</button>
 </div></header>
 <main id="main" class="wrap${wide ? " wide" : ""}">
 ${body}
@@ -181,14 +183,16 @@ ${tabs.map(([k, href, icon, label]) => `<a href="${u(href)}" data-tab="${k}"${ta
   <div class="dlg-body" id="pickBody"></div>
 </div></dialog>
 <dialog id="dAa" closedby="any"><div class="dlg">
-  <div class="dlg-head"><h3>Cỡ chữ và giao diện</h3><button class="ibtn" data-close aria-label="Đóng">${ic("x")}</button></div>
+  <div class="dlg-head"><h3>Tuỳ chọn đọc</h3><button class="ibtn" data-close aria-label="Đóng">${ic("x")}</button></div>
   <div class="dlg-body">
     <label class="field" for="fs"><span>Cỡ chữ: <b id="fsVal">19</b></span><input type="range" id="fs" min="15" max="28" step="1" value="19"></label>
     <div class="field"><span>Kiểu chữ</span><div class="seg" id="segFam"><button data-v="serif">Có chân</button><button data-v="sans">Không chân</button></div></div>
-    <div class="field"><span>Trình bày</span><div class="seg" id="segLay"><button data-v="flow">Liền đoạn</button><button data-v="lines">Mỗi câu một dòng</button></div></div>
+    <div class="field" id="fLang"><span>Ngôn ngữ khi đọc</span><div class="seg" id="segLang"><button data-v="vi">Tiếng Việt</button><button data-v="bi">Song ngữ</button><button data-v="en">Tiếng Anh</button></div></div>
+    <div class="field" id="fEn"><span>Bản tiếng Anh</span><div class="seg" id="segEn"><button data-v="kjv">King James (KJV)</button><button data-v="web">World English (WEB)</button></div><span class="small muted" id="enNote" style="font-weight:400"></span></div>
+    <div class="field" id="fLay"><span>Trình bày</span><div class="seg" id="segLay"><button data-v="flow">Liền đoạn</button><button data-v="lines">Mỗi câu một dòng</button></div></div>
     <div class="field"><span>Giao diện</span><div class="seg" id="segTheme"><button data-v="auto">Tự động</button><button data-v="light">Sáng</button><button data-v="dark">Tối</button></div></div>
     <div class="field"><span>Đọc khi không có mạng</span><div class="row"><button class="btn" id="offlineBtn">Tải toàn bộ Kinh Thánh (khoảng 5 MB)</button></div><span class="small muted" id="offlineMsg" style="font-weight:400"></span></div>
-    <p class="small muted" style="margin:0">Văn bản: Kinh Thánh bản Truyền Thống 1925 (Tân Ước 1923, Cựu Ước 1925), thuộc phạm vi công cộng.</p>
+    <p class="small muted" style="margin:0">Văn bản: Kinh Thánh bản Truyền Thống 1925 (Tân Ước 1923, Cựu Ước 1925), thuộc phạm vi công cộng. Bản tiếng Anh King James (1611) và World English Bible cũng thuộc phạm vi công cộng.</p>
   </div>
 </div></dialog>
 <dialog id="dAcct" closedby="any"><div class="dlg">

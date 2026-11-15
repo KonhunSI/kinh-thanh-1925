@@ -1,6 +1,6 @@
 "use strict";
 /*@META@*/
-const { BASE, NT, CHS, GROUPS, VOD_DAYS, VOD_SPECIAL, TET, VODIMG, BOOKS, SLUGS } = META;
+const { BASE, NT, CHS, GROUPS, VOD_DAYS, VOD_SPECIAL, TET, VODIMG, BOOKS, SLUGS, EN_BOOKS } = META;
 const PLANS = {
   year: { name: "Trọn Kinh Thánh trong 1 năm", desc: "Từ Sáng Thế Ký đến Khải Huyền, khoảng 3–4 đoạn mỗi ngày.", days: 365, from: 0, to: 66 },
   nt90: { name: "Tân Ước trong 90 ngày", desc: "260 đoạn Tân Ước, khoảng 3 đoạn mỗi ngày.", days: 90, from: NT, to: 66 },
@@ -10,7 +10,7 @@ const WD = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", 
 
 /* ---------- Lưu trữ trên máy ---------- */
 const KEY = "kt1925";
-const DEF = { pos: null, size: 19, fam: "serif", lay: "flow", theme: "auto", rate: 1, hl: {}, notes: {}, bm: {}, plan: null };
+const DEF = { pos: null, size: 19, fam: "serif", lay: "flow", theme: "auto", rate: 1, lang: "vi", en: "kjv", hl: {}, notes: {}, bm: {}, plan: null };
 let S = (() => { try { return Object.assign({}, DEF, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) { return Object.assign({}, DEF); } })();
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast("Trình duyệt không cho lưu dữ liệu. Kiểm tra chế độ ẩn danh."); return; } stamp(); }
 
@@ -44,6 +44,19 @@ function loadBook(b) {
   return pending[b];
 }
 
+// Bản tiếng Anh: KJV (King James, 1611) hoặc WEB (World English Bible), cùng số câu với bản 1925.
+const EN_NAME = { kjv: "KJV", web: "WEB" }, enCache = {}, enPending = {};
+function loadEn(b, tr = S.en) {
+  const k = tr + b;
+  if (enCache[k]) return Promise.resolve(enCache[k]);
+  if (enPending[k]) return enPending[k];
+  enPending[k] = fetch(`${BASE}data/${tr}/b${String(b + 1).padStart(2, "0")}.json`)
+    .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then((d) => (enCache[k] = d)).finally(() => delete enPending[k]);
+  return enPending[k];
+}
+const enRef = (b, c, v) => `${EN_BOOKS[b]} ${c}${v ? ":" + v : ""}`;
+
 /* ---------- Cỡ chữ và giao diện ---------- */
 function applyPrefs() {
   const d = document.documentElement;
@@ -51,14 +64,17 @@ function applyPrefs() {
   if (S.theme === "auto") d.removeAttribute("data-theme"); else d.setAttribute("data-theme", S.theme);
   d.classList.toggle("sans", S.fam === "sans");
   d.classList.toggle("lines", S.lay === "lines");
+  d.classList.toggle("lang-bi", S.lang === "bi"); d.classList.toggle("lang-en", S.lang === "en");
+  $("#fEn").hidden = S.lang === "vi"; $("#fLay").hidden = S.lang === "bi";
+  $("#enNote").textContent = S.en === "kjv" ? "Bản 1611, lời cổ giống bản 1925." : "Tiếng Anh hiện đại, dễ đọc.";
   $("#fs").value = S.size; $("#fsVal").textContent = S.size;
-  for (const [id, val] of [["#segFam", S.fam], ["#segLay", S.lay], ["#segTheme", S.theme]])
+  for (const [id, val] of [["#segFam", S.fam], ["#segLay", S.lay], ["#segTheme", S.theme], ["#segLang", S.lang], ["#segEn", S.en]])
     $$(id + " button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === val));
 }
 $("#aaBtn").onclick = () => { $("#dAa").showModal(); offlineStatus(); };
 $("#fs").oninput = (e) => { S.size = +e.target.value; save(); applyPrefs(); };
-for (const [id, k] of [["#segFam", "fam"], ["#segLay", "lay"], ["#segTheme", "theme"]])
-  $$(id + " button").forEach((b) => (b.onclick = () => { S[k] = b.dataset.v; save(); applyPrefs(); }));
+for (const [id, k] of [["#segFam", "fam"], ["#segLay", "lay"], ["#segTheme", "theme"], ["#segLang", "lang"], ["#segEn", "en"]])
+  $$(id + " button").forEach((b) => (b.onclick = () => { S[k] = b.dataset.v; save(); applyPrefs(); if (k === "lang" || k === "en") langChanged(); }));
 $$("dialog").forEach((d) => d.addEventListener("click", (e) => { if (e.target === d || e.target.closest("[data-close]")) d.close(); }));
 
 /* ---------- Đọc khi không có mạng ---------- */
@@ -66,7 +82,7 @@ const DATA_CACHE = "kt-data-" + META.DATAV;
 async function offlineStatus() {
   const msg = $("#offlineMsg"), btn = $("#offlineBtn");
   if (!("caches" in window) || !("serviceWorker" in navigator)) { msg.textContent = "Trình duyệt này chưa hỗ trợ đọc khi không có mạng."; btn.hidden = true; return; }
-  try { const c = await caches.open(DATA_CACHE); const n = (await c.keys()).length; if (n >= 66) { msg.textContent = "Đã tải đủ 66 sách. Có thể đọc khi không có mạng."; btn.textContent = "Tải lại toàn bộ"; } else if (n) msg.textContent = `Đã có ${n}/66 sách trên máy.`; } catch (e) {}
+  try { const c = await caches.open(DATA_CACHE); const n = (await c.keys()).filter((r) => /\/data\/b\d+\.json$/.test(r.url)).length; if (n >= 66) { msg.textContent = "Đã tải đủ 66 sách. Có thể đọc khi không có mạng."; btn.textContent = "Tải lại toàn bộ"; } else if (n) msg.textContent = `Đã có ${n}/66 sách trên máy.`; } catch (e) {}
 }
 $("#offlineBtn").onclick = async () => {
   const msg = $("#offlineMsg"), btn = $("#offlineBtn"); btn.disabled = true;
@@ -76,6 +92,13 @@ $("#offlineBtn").onclick = async () => {
       const url = `${BASE}data/b${String(i + 1).padStart(2, "0")}.json`;
       const res = await fetch(url, { cache: "reload" }); if (!res.ok) throw new Error(res.status);
       await c.put(url, res); msg.textContent = `Đang tải ${++n}/66 sách…`;
+    }
+    if (S.lang !== "vi") { // tải thêm bản tiếng Anh đang dùng
+      for (let i = 0; i < 66; i++) {
+        const url = `${BASE}data/${S.en}/b${String(i + 1).padStart(2, "0")}.json`;
+        const res = await fetch(url, { cache: "reload" }); if (!res.ok) throw new Error(res.status);
+        await c.put(url, res); msg.textContent = `Đang tải bản ${EN_NAME[S.en]} ${i + 1}/66…`;
+      }
     }
     const shell = await caches.open("kt-pages-v1"); await shell.add(`${BASE}doc/`).catch(() => {});
     msg.textContent = "Xong. Có thể đọc toàn bộ Kinh Thánh khi không có mạng."; toast("Đã tải xong 66 sách");
@@ -181,8 +204,9 @@ async function initChapter(b, c) {
   $$('[data-tab="read"]').forEach((t) => (t.href = chUrl(b, c)));
   if (!cache[b]) { try { await loadBook(b); } catch (e) {} }
   const vs = cache[b] ? cache[b][c - 1] : $$("#scr .v").map((el) => el.textContent.replace(/^\d+/, ""));
-  CH = { b, c, verses: vs };
+  CH = { b, c, verses: vs, en: null };
   decorate();
+  langChip(); applyLang();
   $("#scr").addEventListener("click", (e) => {
     const nd = e.target.closest("[data-note]"); if (nd) { e.stopPropagation(); openNote(+nd.dataset.note); return; }
     const v = e.target.closest(".v"); if (!v) return;
@@ -205,6 +229,45 @@ async function initChapter(b, c) {
     if (Math.abs(dx) > 80 && Math.abs(dy) < 50) { const a = $(`a[rel="${dx < 0 ? "next" : "prev"}"]`); if (a) location.href = a.href; }
   }, { passive: true });
 }
+// Song ngữ / tiếng Anh: chữ Việt bọc trong .vi, câu tiếng Anh thêm vào .en ngay trong cùng câu.
+async function applyLang() {
+  if (!CH) return;
+  const { b, c } = CH, tr = S.en;
+  if (S.lang === "vi") { CH.en = null; langChip(); return; }
+  let en;
+  try { en = (await loadEn(b, tr))[c - 1]; } catch (e) { toast("Chưa tải được bản tiếng Anh. Kiểm tra kết nối mạng."); return; }
+  if (!CH || CH.b !== b || CH.c !== c || S.en !== tr || S.lang === "vi") return;
+  CH.en = en;
+  $$("#scr .v").forEach((el) => {
+    if (!el.querySelector(".vi")) {
+      const w = document.createElement("span"); w.className = "vi";
+      [...el.childNodes].filter((n) => n.nodeType === 3 || (n.nodeType === 1 && !n.matches(".n,.notedot,.en"))).forEach((n) => w.appendChild(n));
+      el.insertBefore(w, el.querySelector(".n") ? el.querySelector(".n").nextSibling : el.firstChild);
+    }
+    let e = el.querySelector(".en");
+    if (!e) { e = document.createElement("span"); e.className = "en"; e.lang = "en"; el.querySelector(".vi").after(e); }
+    e.textContent = en[+el.dataset.v - 1] || "";
+  });
+  langChip();
+}
+function langChip() {
+  const head = $(".ch-head"); if (!head) return;
+  let chip = $("#langChip");
+  if (!chip) {
+    chip = document.createElement("button"); chip.id = "langChip"; chip.className = "lang-chip";
+    chip.onclick = () => { $("#dAa").showModal(); offlineStatus(); $("#fLang").scrollIntoView({ block: "nearest" }); };
+    head.appendChild(chip);
+  }
+  const cp = $(".copyright"); if (cp) { if (!cp.dataset.vi) cp.dataset.vi = cp.textContent; cp.textContent = S.lang === "vi" ? cp.dataset.vi : `${cp.dataset.vi} · ${S.en === "kjv" ? "King James Version (1611)" : "World English Bible"} · public domain`; }
+  chip.textContent = S.lang === "vi" ? "Tiếng Việt" : S.lang === "bi" ? `Song ngữ · ${EN_NAME[S.en]}` : `English · ${EN_NAME[S.en]}`;
+  chip.setAttribute("aria-label", "Đổi ngôn ngữ khi đọc: " + chip.textContent);
+  const bk = $(".ch-head .book");
+  if (bk && CH) { if (!bk.dataset.vi) bk.dataset.vi = bk.textContent; bk.textContent = S.lang === "vi" ? bk.dataset.vi : `${bk.dataset.vi} · ${EN_BOOKS[CH.b]}`; }
+}
+function langChanged() {
+  if (CH) applyLang();
+  if (document.body.dataset.page === "home") vodLang();
+}
 function clearSel() { sel.clear(); $$(".v.sel").forEach((x) => x.classList.remove("sel")); updateSelbar(); }
 function updateSelbar() {
   const on = sel.size > 0; $("#selbar").hidden = !on; if (!on) return;
@@ -214,7 +277,10 @@ function selected() {
   const vs = [...sel].sort((a, b) => a - b);
   let parts = [], s = vs[0], p = vs[0];
   for (const v of vs.slice(1).concat([null])) { if (v === p + 1) { p = v; continue; } parts.push(s === p ? `${s}` : `${s}–${p}`); s = p = v; }
-  return { vs, text: vs.map((v) => CH.verses[v - 1]).join(" "), ref: `${BOOKS[CH.b][0]} ${CH.c}:${parts.join(", ")}` };
+  const vi = vs.map((v) => CH.verses[v - 1]).join(" "), en = CH.en ? vs.map((v) => CH.en[v - 1]).filter(Boolean).join(" ") : "";
+  const ref = `${BOOKS[CH.b][0]} ${CH.c}:${parts.join(", ")}`, eref = `${EN_BOOKS[CH.b]} ${CH.c}:${parts.join(", ")}`;
+  const mode = en ? S.lang : "vi";
+  return { vs, text: mode === "en" ? en : vi, ref: mode === "en" ? eref : ref, vi, en, eref, mode };
 }
 $("#selClose").onclick = clearSel;
 $$("#selbar .color").forEach((btn) => (btn.onclick = () => {
@@ -222,7 +288,11 @@ $$("#selbar .color").forEach((btn) => (btn.onclick = () => {
   for (const v of sel) { const k = key(CH.b, CH.c, v); if (c) S.hl[k] = c; else delete S.hl[k]; }
   save(); sel.clear(); decorate(); updateSelbar(); toast(c ? "Đã tô màu" : "Đã bỏ tô màu");
 }));
-$("#aCopy").onclick = () => { const s = selected(); copyText(`“${s.text}” (${s.ref}, Kinh Thánh 1925)\n${location.origin}${chUrl(CH.b, CH.c, s.vs[0])}`); clearSel(); };
+$("#aCopy").onclick = () => {
+  const s = selected(), link = `${location.origin}${chUrl(CH.b, CH.c, s.vs[0])}`, tr = EN_NAME[S.en];
+  const vi = `“${s.vi}” (${s.ref}, Kinh Thánh 1925)`, en = `“${s.en}” (${s.eref}, ${tr})`;
+  copyText((s.mode === "bi" ? `${vi}\n${en}` : s.mode === "en" ? en : vi) + `\n${link}`); clearSel();
+};
 $("#aBm").onclick = () => {
   const vs = [...sel], all = vs.every((v) => S.bm[key(CH.b, CH.c, v)]);
   for (const v of vs) { const k = key(CH.b, CH.c, v); if (all) delete S.bm[k]; else S.bm[k] = Date.now(); }
@@ -316,6 +386,7 @@ $("#imgSave").onclick = () => { if (lastBlob) downloadBlob(lastBlob, lastName); 
 /* ---------- Nghe đọc (giọng đọc của máy) ---------- */
 let audio = null;
 $("#pRate").value = String(S.rate);
+function enVoice() { if (!("speechSynthesis" in window)) return null; const vs = speechSynthesis.getVoices(); return vs.find((v) => /^en-(US|GB)/i.test(v.lang)) || vs.find((v) => /^en/i.test(v.lang)) || null; }
 function viVoice() { if (!("speechSynthesis" in window)) return null; return speechSynthesis.getVoices().find((v) => /^vi/i.test(v.lang)) || null; }
 if ("speechSynthesis" in window) { try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => {}; } catch (e) {} }
 function markPlaying(v) {
@@ -332,14 +403,15 @@ function syncPlayer() {
 function startAudio(from = 1) {
   if (!CH) return; stopAudio();
   if (!("speechSynthesis" in window)) { toast("Trình duyệt này chưa hỗ trợ đọc to."); return; }
-  const voice = viVoice(); if (!voice) toast("Máy chưa có giọng tiếng Việt, âm đọc có thể không chuẩn.");
-  const { b, c, verses } = CH; audio = { b, c, n: verses.length, cur: from, paused: false }; syncPlayer();
+  const enMode = S.lang === "en" && CH.en;
+  const voice = enMode ? enVoice() : viVoice(); if (!voice && !enMode) toast("Máy chưa có giọng tiếng Việt, âm đọc có thể không chuẩn.");
+  const { b, c } = CH, verses = enMode ? CH.en : CH.verses; audio = { b, c, n: verses.length, cur: from, paused: false }; syncPlayer();
   let wake = null; try { navigator.wakeLock && navigator.wakeLock.request("screen").then((w) => (wake = w)).catch(() => {}); } catch (e) {}
   audio.release = () => { try { wake && wake.release(); } catch (e) {} };
   const speakFrom = (v) => {
     if (!audio || audio.stopped) return;
     if (v > verses.length) { endAudio(true); return; }
-    const u = new SpeechSynthesisUtterance(verses[v - 1]); u.lang = "vi-VN"; if (voice) u.voice = voice; u.rate = S.rate;
+    const u = new SpeechSynthesisUtterance(verses[v - 1] || " "); u.lang = enMode ? "en-US" : "vi-VN"; if (voice) u.voice = voice; u.rate = S.rate;
     u.onstart = () => markPlaying(v); u.onend = () => { if (audio && !audio.stopped) speakFrom(v + 1); };
     speechSynthesis.speak(u);
   };
@@ -387,10 +459,21 @@ async function initHome() {
   $("#vodRef").textContent = refName(b, vc, vv); $("#vodRead").href = chUrl(b, vc, vv);
   let vt = $("#vodText").textContent;
   try { const data = await loadBook(b); vt = cleanVerse(data[vc - 1][vv - 1]); $("#vodText").textContent = vt; } catch (e) {}
-  $("#vodCopy").onclick = () => copyText(`“${vt}” (${refName(b, vc, vv)}, Kinh Thánh 1925)`);
+  VOD = { b, c: vc, v: vv, vt };
+  $("#vodCopy").onclick = () => copyText(`“${vt}” (${refName(b, vc, vv)}, Kinh Thánh 1925)` + (VOD.en ? `\n“${VOD.en}” (${enRef(b, vc, vv)}, ${EN_NAME[S.en]})` : ""));
+  vodLang();
   $("#vodImg").onclick = () => openImage(vt, refName(b, vc, vv), vod.img, chUrl(b, vc, vv));
   contCard();
   renderPlan();
+}
+let VOD = null;
+async function vodLang() {
+  if (!VOD) return;
+  let p = $("#vodEn");
+  if (S.lang === "vi") { VOD.en = null; if (p) p.remove(); return; }
+  try { VOD.en = (await loadEn(VOD.b))[VOD.c - 1][VOD.v - 1]; } catch (e) { return; }
+  if (!p) { p = document.createElement("p"); p.id = "vodEn"; p.className = "vod-en"; p.lang = "en"; $("#vodText").after(p); }
+  p.textContent = `${VOD.en} (${enRef(VOD.b, VOD.c, VOD.v)}, ${EN_NAME[S.en]})`;
 }
 function contCard() {
   const cb = $("#contBtn"); if (!cb) return;

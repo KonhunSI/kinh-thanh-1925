@@ -54,3 +54,6 @@ export const GROUPS = [
   ["Phúc Âm", 39, 42], ["Lịch sử", 43, 43], ["Thư của Phao-lô", 44, 56], ["Thư chung", 57, 64], ["Tiên tri", 65, 65],
 ];
 export const groupOf = (b) => GROUPS.find(([, a, z]) => b >= a && b <= z)[0];
+
+// Tên sách tiếng Anh (theo bản King James), dùng khi đọc song ngữ hoặc tiếng Anh.
+export const EN_BOOKS = ["Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy", "Joshua", "Judges", "Ruth", "1 Samuel", "2 Samuel", "1 Kings", "2 Kings", "1 Chronicles", "2 Chronicles", "Ezra", "Nehemiah", "Esther", "Job", "Psalms", "Proverbs", "Ecclesiastes", "Song of Solomon", "Isaiah", "Jeremiah", "Lamentations", "Ezekiel", "Daniel", "Hosea", "Joel", "Amos", "Obadiah", "Jonah", "Micah", "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi", "Matthew", "Mark", "Luke", "John", "Acts", "Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians", "Philippians", "Colossians", "1 Thessalonians", "2 Thessalonians", "1 Timothy", "2 Timothy", "Titus", "Philemon", "Hebrews", "James", "1 Peter", "2 Peter", "1 John", "2 John", "3 John", "Jude", "Revelation"];

@@ -364,3 +364,12 @@ textarea{width:100%;min-height:9rem;border-radius:10px;border:1px solid var(--li
 .blist small{font-size:12.5px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .blist .cur{background:var(--accent-soft);color:var(--accent);font-weight:600}
 .blist .cur small{color:var(--accent)}
+/* song ngữ / tiếng Anh */
+.v .en{display:none}
+.lang-bi .scripture .v{display:block;margin-bottom:.9em}
+.lang-bi .v .en{display:block;margin-top:.25em;padding-left:1.1em;font-size:.88em;line-height:1.6;color:var(--muted)}
+.lang-en .v:has(> .en) > .vi{display:none}
+.lang-en .v .en{display:inline}
+.lang-chip{margin-left:auto;align-self:center;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:13px;font-weight:500;color:var(--muted);white-space:nowrap}
+.lang-chip:hover{border-color:var(--accent);color:var(--accent)}
+.vod-en{margin:10px 0 0;font-family:var(--f-text);font-size-adjust:.507;font-size:clamp(15px,3.8vw,18px);line-height:1.5;opacity:.85;text-wrap:pretty}
