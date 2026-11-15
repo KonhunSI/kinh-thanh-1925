@@ -510,12 +510,21 @@ async function initShell() {
 }
 
 /* ---------- Khởi động ---------- */
-applyPrefs();
-({
-  home: initHome,
-  book: initBook,
-  chapter: () => initChapter(+document.body.dataset.b, +document.body.dataset.c),
-  search: initSearch,
-  saved: initSaved,
-  shell: initShell,
-}[document.body.dataset.page] || (() => {}))();
+const loadS = () => { try { return Object.assign({}, DEF, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) { return Object.assign({}, DEF); } };
+function boot() {
+  applyPrefs();
+  ({
+    home: initHome,
+    book: initBook,
+    chapter: () => initChapter(+document.body.dataset.b, +document.body.dataset.c),
+    search: initSearch,
+    saved: initSaved,
+    shell: initShell,
+  }[document.body.dataset.page] || (() => {}))();
+}
+// Trang được dựng sẵn (tải trước) chỉ chạy khi người dùng thật sự mở nó, và đọc lại dữ liệu mới nhất
+// để không ghi nhầm "đang đọc" hay đè mất màu tô vừa thêm ở trang trước.
+if (document.prerendering) { applyPrefs(); document.addEventListener("prerenderingchange", () => { S = loadS(); boot(); }, { once: true }); }
+else boot();
+// Quay lại trang cũ bằng nút Back: trang lấy từ bộ nhớ đệm, cập nhật lại dữ liệu đã lưu.
+addEventListener("pageshow", (e) => { if (e.persisted) { S = loadS(); applyPrefs(); if (typeof CH !== "undefined" && CH) decorate(); } });

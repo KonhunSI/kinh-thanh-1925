@@ -74,6 +74,17 @@ const SPRITE = `<svg width="0" height="0" style="position:absolute" aria-hidden=
 </svg>`;
 const ic = (id, extra = "") => `<svg class="icon"${extra}><use href="#i-${id}"/></svg>`;
 
+// Tải sẵn trang kế tiếp: đoạn sau được dựng sẵn ngay; liên kết khác được dựng khi người dùng sắp bấm.
+// Trình duyệt không hỗ trợ (Safari, Firefox) sẽ bỏ qua.
+const SPEC_RULES = `<script type="speculationrules">${JSON.stringify({
+  prerender: [
+    { where: { selector_matches: "a[rel~=next]" }, eagerness: "immediate" },
+    { where: { and: [{ href_matches: `${BASE}*` }, { not: { selector_matches: "a[rel~=next], [target=_blank], [download]" } }, { not: { href_matches: `${BASE}data/*` } }, { not: { href_matches: `${BASE}*.(json|xml|txt|webmanifest)` } }] }, eagerness: "moderate" },
+  ],
+})}</script>`;
+// Chiều trượt khi chuyển trang: đến từ đoạn trước thì trượt sang trái, đến từ đoạn sau thì trượt sang phải.
+const VT_SCRIPT = `<script>addEventListener("pagereveal",function(e){var t=e.viewTransition,a=window.navigation&&navigation.activation;if(!t||!a||!a.from)return;var f=a.from.url,p=document.querySelector("a[rel~=prev]"),n=document.querySelector("a[rel~=next]");t.types.add(p&&f===p.href?"next":n&&f===n.href?"prev":"fade")})</script>`;
+
 // Áp dụng cỡ chữ / giao diện trước khi vẽ trang để không bị chớp.
 const PREF_SCRIPT = `<script>try{var p=JSON.parse(localStorage.getItem("kt1925")||"{}"),d=document.documentElement;if(p.theme&&p.theme!=="auto")d.setAttribute("data-theme",p.theme);if(p.size)d.style.setProperty("--read-size",p.size+"px");if(p.fam==="sans")d.classList.add("sans");if(p.lay==="lines")d.classList.add("lines")}catch(e){}</script>`;
 
@@ -107,6 +118,8 @@ ${canonical != null ? `<meta property="og:url" content="${esc(abs(canonical))}">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400&display=swap">
 <link rel="stylesheet" href="${u("assets/style.css")}?v=${CSS_V}">
 ${PREF_SCRIPT}
+${SPEC_RULES}
+${VT_SCRIPT}
 ${head}
 </head>
 <body data-page="${page}"${dataAttrs}>
@@ -156,11 +169,11 @@ ${body}
 <nav class="tabs" aria-label="Chính"><div class="wrap">
 ${tabs.map(([k, href, icon, label]) => `<a href="${u(href)}" data-tab="${k}"${tab === k ? ' aria-current="page"' : ""}>${ic(icon)}${label}</a>`).join("\n")}
 </div></nav>
-<dialog id="dPick"><div class="dlg">
+<dialog id="dPick" closedby="any"><div class="dlg">
   <div class="dlg-head"><button class="ibtn" id="pickBack" aria-label="Quay lại danh sách sách" hidden>${ic("left")}</button><h3 id="pickTitle">Chọn sách</h3><button class="ibtn" data-close aria-label="Đóng">${ic("x")}</button></div>
   <div class="dlg-body" id="pickBody"></div>
 </div></dialog>
-<dialog id="dAa"><div class="dlg">
+<dialog id="dAa" closedby="any"><div class="dlg">
   <div class="dlg-head"><h3>Cỡ chữ và giao diện</h3><button class="ibtn" data-close aria-label="Đóng">${ic("x")}</button></div>
   <div class="dlg-body">
     <label class="field" for="fs"><span>Cỡ chữ: <b id="fsVal">19</b></span><input type="range" id="fs" min="15" max="28" step="1" value="19"></label>
@@ -171,12 +184,12 @@ ${tabs.map(([k, href, icon, label]) => `<a href="${u(href)}" data-tab="${k}"${ta
     <p class="small muted" style="margin:0">Văn bản: Kinh Thánh bản Truyền Thống 1925 (Tân Ước 1923, Cựu Ước 1925), thuộc phạm vi công cộng.</p>
   </div>
 </div></dialog>
-<dialog id="dNote"><div class="dlg">
+<dialog id="dNote" closedby="any"><div class="dlg">
   <div class="dlg-head"><h3 id="noteTitle">Ghi chú</h3><button class="ibtn" data-close aria-label="Đóng">${ic("x")}</button></div>
-  <div class="dlg-body"><p id="noteVerse" style="font-family:var(--f-text);margin:0 0 12px;line-height:1.55"></p><label class="sr" for="noteText">Nội dung ghi chú</label><textarea id="noteText" placeholder="Điều Chúa dạy tôi qua câu này…"></textarea></div>
+  <div class="dlg-body"><p id="noteVerse" style="font-family:var(--f-text);font-size-adjust:.507;margin:0 0 12px;line-height:1.55"></p><label class="sr" for="noteText">Nội dung ghi chú</label><textarea id="noteText" placeholder="Điều Chúa dạy tôi qua câu này…"></textarea></div>
   <div class="dlg-foot"><button class="btn ghost" id="noteDel">Xóa ghi chú</button><button class="btn primary" id="noteSave">Lưu</button></div>
 </div></dialog>
-<dialog id="dImg"><div class="dlg">
+<dialog id="dImg" closedby="any"><div class="dlg">
   <div class="dlg-head"><h3>Ảnh câu Kinh Thánh</h3><button class="ibtn" data-close aria-label="Đóng">${ic("x")}</button></div>
   <div class="dlg-body"><img id="shareImg" class="share-img" alt=""><p class="share-hint muted" id="shareHint" hidden></p></div>
   <div class="dlg-foot share-foot">
@@ -215,6 +228,7 @@ const testament = (b) => (b < NT ? "Cựu Ước" : "Tân Ước");
 <blockquote id="vodText">${esc(vt)}</blockquote><cite id="vodRef">${esc(BOOKS[vb - 1][0])} ${vc}:${vv}</cite>
 <div class="vod-acts"><a class="btn vod-read" id="vodRead" href="${u(chPath(vb - 1, vc))}#v${vv}">Đọc cả đoạn</a><button class="btn vod-ghost" id="vodImg" aria-label="Chia sẻ ảnh câu gốc">${ic("share")}Chia sẻ</button><button class="btn vod-ghost vod-icon" id="vodCopy" aria-label="Sao chép câu gốc" title="Sao chép câu gốc">${ic("copy")}</button></div>
 </div></article>
+<script>(function(){try{var d=new Date(),k=("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2),b=document.getElementById("vodImgBox");b.style.backgroundImage='url("${u("assets/vod/")}'+k+'.jpg")';b.hidden=false;document.getElementById("vod").classList.add("has-img")}catch(e){}})()</script>
 <a class="continue" id="contBtn" href="${u(chPath(0, 1))}"><span class="cont-ic">${ic("book")}</span><span><span class="small muted">Bắt đầu đọc</span><b>Sáng Thế Ký 1</b></span>${ic("right", ' style="margin-left:auto;color:var(--muted)"')}</a>
 <div class="section" id="planBox"></div>
 </div><div class="home-side">
@@ -232,7 +246,7 @@ ${testamentToc(true, "h3", "h4")}${testamentToc(false, "h3", "h4")}
     title: "Kinh Thánh 1925 – Bản Truyền Thống, đọc trực tuyến",
     desc: "Đọc Kinh Thánh tiếng Việt bản Truyền Thống 1925: 66 sách, tìm kiếm có và không dấu, tô màu, ghi chú, kế hoạch đọc, câu gốc mỗi ngày, nghe đọc và đọc khi không có mạng.",
     canonical: "", page: "home", tab: "today", body, wide: true,
-    head: `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url: abs(""), inLanguage: "vi", potentialAction: { "@type": "SearchAction", target: abs("tim-kiem/") + "?q={search_term_string}", "query-input": "required name=search_term_string" } })}</script>`,
+    head: `<script>(function(){var d=new Date(),k=("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2),l=document.createElement("link");l.rel="preload";l.as="image";l.fetchPriority="high";l.href="${u("assets/vod/")}"+k+".jpg";document.head.appendChild(l)})()</script>`+`<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url: abs(""), inLanguage: "vi", potentialAction: { "@type": "SearchAction", target: abs("tim-kiem/") + "?q={search_term_string}", "query-input": "required name=search_term_string" } })}</script>`,
   }));
 }
 
