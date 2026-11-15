@@ -10,7 +10,7 @@ const WD = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", 
 
 /* ---------- Lưu trữ trên máy ---------- */
 const KEY = "kt1925";
-const DEF = { pos: null, size: 19, fam: "serif", lay: "flow", theme: "auto", rate: 1, lang: "vi", en: "kjv", hl: {}, notes: {}, bm: {}, plan: null };
+const DEF = { pos: null, size: 19, fam: "serif", lay: "flow", theme: "auto", rate: 1, lang: "vi", en: "kjv", voiceVi: "", voiceEn: "", hl: {}, notes: {}, bm: {}, plan: null };
 let S = (() => { try { return Object.assign({}, DEF, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) { return Object.assign({}, DEF); } })();
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast("Trình duyệt không cho lưu dữ liệu. Kiểm tra chế độ ẩn danh."); return; } stamp(); }
 
@@ -71,7 +71,7 @@ function applyPrefs() {
   for (const [id, val] of [["#segFam", S.fam], ["#segLay", S.lay], ["#segTheme", S.theme], ["#segLang", S.lang], ["#segEn", S.en]])
     $$(id + " button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === val));
 }
-$("#aaBtn").onclick = () => { $("#dAa").showModal(); offlineStatus(); };
+$("#aaBtn").onclick = () => { $("#dAa").showModal(); offlineStatus(); renderVoices(); };
 $("#fs").oninput = (e) => { S.size = +e.target.value; save(); applyPrefs(); };
 for (const [id, k] of [["#segFam", "fam"], ["#segLay", "lay"], ["#segTheme", "theme"], ["#segLang", "lang"], ["#segEn", "en"]])
   $$(id + " button").forEach((b) => (b.onclick = () => { S[k] = b.dataset.v; save(); applyPrefs(); if (k === "lang" || k === "en") langChanged(); }));
@@ -255,7 +255,7 @@ function langChip() {
   let chip = $("#langChip");
   if (!chip) {
     chip = document.createElement("button"); chip.id = "langChip"; chip.className = "lang-chip";
-    chip.onclick = () => { $("#dAa").showModal(); offlineStatus(); $("#fLang").scrollIntoView({ block: "nearest" }); };
+    chip.onclick = () => { $("#dAa").showModal(); offlineStatus(); renderVoices(); $("#fLang").scrollIntoView({ block: "nearest" }); };
     head.appendChild(chip);
   }
   const cp = $(".copyright"); if (cp) { if (!cp.dataset.vi) cp.dataset.vi = cp.textContent; cp.textContent = S.lang === "vi" ? cp.dataset.vi : `${cp.dataset.vi} · ${S.en === "kjv" ? "King James Version (1611)" : "World English Bible"} · public domain`; }
@@ -265,6 +265,7 @@ function langChip() {
   if (bk && CH) { if (!bk.dataset.vi) bk.dataset.vi = bk.textContent; bk.textContent = S.lang === "vi" ? bk.dataset.vi : `${bk.dataset.vi} · ${EN_BOOKS[CH.b]}`; }
 }
 function langChanged() {
+  renderVoices();
   if (CH) applyLang();
   if (document.body.dataset.page === "home") vodLang();
 }
@@ -386,9 +387,42 @@ $("#imgSave").onclick = () => { if (lastBlob) downloadBlob(lastBlob, lastName); 
 /* ---------- Nghe đọc (giọng đọc của máy) ---------- */
 let audio = null;
 $("#pRate").value = String(S.rate);
-function enVoice() { if (!("speechSynthesis" in window)) return null; const vs = speechSynthesis.getVoices(); return vs.find((v) => /^en-(US|GB)/i.test(v.lang)) || vs.find((v) => /^en/i.test(v.lang)) || null; }
-function viVoice() { if (!("speechSynthesis" in window)) return null; return speechSynthesis.getVoices().find((v) => /^vi/i.test(v.lang)) || null; }
-if ("speechSynthesis" in window) { try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => {}; } catch (e) {} }
+// Giọng đọc lấy từ máy người dùng (iPhone, Android, Windows, Mac mỗi máy một khác). Người dùng chọn giọng trong Tuỳ chọn đọc.
+const voicesFor = (en) => { if (!("speechSynthesis" in window)) return []; const re = en ? /^en/i : /^vi/i; return speechSynthesis.getVoices().filter((v) => re.test(v.lang)); };
+const voiceRank = (v) => (/natural|neural|premium|enhanced|nâng cao|cao cấp/i.test(v.name) ? 0 : 2) + (/^en-(US|GB)/i.test(v.lang) || /^vi/i.test(v.lang) ? 0 : 1);
+function pickVoice(en) {
+  const list = voicesFor(en), want = en ? S.voiceEn : S.voiceVi;
+  return list.find((v) => v.voiceURI === want) || list.slice().sort((a, b) => voiceRank(a) - voiceRank(b))[0] || null;
+}
+const enVoice = () => pickVoice(true), viVoice = () => pickVoice(false);
+const voiceLabel = (v) => v.name.replace(/^(Microsoft|Google|Apple)\s+/i, "").replace(/\s*Online\s*\(Natural\)/i, " (tự nhiên)").replace(/\s*-\s*(Vietnamese|English)\s*\([^)]*\)/i, "").replace(/^(vi|en)-[A-Z]{2}-x-(\w+)-(local|network)$/i, (m, l, n, t) => `Giọng ${n.toUpperCase()}${t === "network" ? " (cần mạng)" : ""}`) + (/^en/i.test(v.lang) ? ` · ${v.lang}` : "");
+function renderVoices() {
+  const sel = $("#voiceSel"); if (!sel) return;
+  const en = S.lang === "en", list = voicesFor(en), cur = pickVoice(en);
+  $("#voiceLbl").textContent = en ? "Giọng đọc tiếng Anh" : "Giọng đọc tiếng Việt";
+  sel.replaceChildren(...list.map((v) => { const o = document.createElement("option"); o.value = v.voiceURI; o.textContent = voiceLabel(v); o.selected = cur && v.voiceURI === cur.voiceURI; return o; }));
+  sel.disabled = list.length < 2; $("#voiceTry").disabled = !list.length;
+  const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (/Mac/.test(ua) && "ontouchend" in document), android = /Android/.test(ua);
+  const more = ios ? "Trên iPhone, vào Cài đặt › Trợ năng › Nội dung được đọc › Giọng nói › Tiếng Việt để tải thêm giọng (chọn bản Nâng cao cho rõ hơn)."
+    : android ? "Trên Android, vào Cài đặt › Chuyển văn bản thành giọng nói › Công cụ của Google › Cài đặt › Cài đặt dữ liệu giọng nói › Tiếng Việt để tải thêm giọng."
+    : /Edg\//.test(ua) ? "" : "Trình duyệt Microsoft Edge có sẵn giọng tiếng Việt tự nhiên (nam và nữ).";
+  $("#voiceNote").textContent = !("speechSynthesis" in window) ? "Trình duyệt này chưa hỗ trợ đọc to."
+    : !list.length ? (en ? "Máy chưa có giọng tiếng Anh." : "Máy chưa có giọng tiếng Việt. " + more)
+    : list.length === 1 ? `Máy này có 1 giọng. ${more}` : `Máy này có ${list.length} giọng.${list.length < 3 ? " " + more : ""}`;
+}
+if ("speechSynthesis" in window) { try { speechSynthesis.getVoices(); speechSynthesis.addEventListener("voiceschanged", renderVoices); } catch (e) {} }
+$("#voiceSel").onchange = (e) => {
+  if (S.lang === "en") S.voiceEn = e.target.value; else S.voiceVi = e.target.value; save();
+  if (audio) { const v = audio.cur; stopAudio(); setTimeout(() => startAudio(v), 80); } else tryVoice();
+};
+function tryVoice() {
+  if (!("speechSynthesis" in window)) return;
+  const en = S.lang === "en", v = pickVoice(en); if (!v) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(en ? "The Lord is my shepherd; I shall not want." : "Đức Giê-hô-va là Đấng chăn giữ tôi: tôi sẽ chẳng thiếu thốn gì.");
+  u.voice = v; u.lang = v.lang; u.rate = S.rate; speechSynthesis.speak(u);
+}
+$("#voiceTry").onclick = () => { if (audio) stopAudio(); tryVoice(); };
 function markPlaying(v) {
   $$(".v.playing").forEach((x) => x.classList.remove("playing"));
   const el = $("#v" + v);
@@ -411,7 +445,7 @@ function startAudio(from = 1) {
   const speakFrom = (v) => {
     if (!audio || audio.stopped) return;
     if (v > verses.length) { endAudio(true); return; }
-    const u = new SpeechSynthesisUtterance(verses[v - 1] || " "); u.lang = enMode ? "en-US" : "vi-VN"; if (voice) u.voice = voice; u.rate = S.rate;
+    const u = new SpeechSynthesisUtterance(verses[v - 1] || " "); u.lang = voice ? voice.lang : enMode ? "en-US" : "vi-VN"; if (voice) u.voice = voice; u.rate = S.rate;
     u.onstart = () => markPlaying(v); u.onend = () => { if (audio && !audio.stopped) speakFrom(v + 1); };
     speechSynthesis.speak(u);
   };

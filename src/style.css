@@ -373,3 +373,9 @@ textarea{width:100%;min-height:9rem;border-radius:10px;border:1px solid var(--li
 .lang-chip{margin-left:auto;align-self:center;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:13px;font-weight:500;color:var(--muted);white-space:nowrap}
 .lang-chip:hover{border-color:var(--accent);color:var(--accent)}
 .vod-en{margin:10px 0 0;font-family:var(--f-text);font-size-adjust:.507;font-size:clamp(15px,3.8vw,18px);line-height:1.5;opacity:.85;text-wrap:pretty}
+.voice-row{display:flex;gap:8px;align-items:center}
+#voiceSel{flex:1;min-width:0;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--bg);padding:0 10px;font-size:15px}
+#voiceSel:disabled{opacity:1;color:var(--fg)}
+#voiceTry{padding:8px 14px;white-space:nowrap}
+#voiceTry .icon{width:16px;height:16px}
+#fVoice > label{font-size:13px;font-weight:600;color:var(--muted)}
